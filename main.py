@@ -1698,11 +1698,11 @@ def calcola_hwdi(temperatura, precipitazioni):
 
 
 def calcola_prob_tralicci(vento):
-     mu= 80
-     sd = 16
+     theta= 88
+     beta = 0.336
      v_critical=45
      v_collapse=150
-     curva = lognorm(sd / mu, scale=mu)
+     curva = lognorm(s=beta, scale=theta)
      if vento<v_critical:
        prob_tralicci=0
      elif vento>=v_collapse:   
