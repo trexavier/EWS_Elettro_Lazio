@@ -1699,7 +1699,7 @@ def calcola_hwdi(temperatura, precipitazioni):
 
 def calcola_prob_tralicci(vento):
      theta= 88
-     beta = 0.336
+     beta=0.336
      v_critical=45
      v_collapse=150
      curva = lognorm(s=beta, scale=theta)
@@ -1712,11 +1712,11 @@ def calcola_prob_tralicci(vento):
      return round(prob_tralicci*100)
 
 def calcola_prob_linea_esterna(vento):
-     mu= 40
-     sd = 5
+     theta= 47
+     beta=0.198
      v_critical=30
      v_collapse=60
-     curva = lognorm(sd / mu, scale=mu)
+     curva = lognorm(s=beta, scale=theta)
      if vento<v_critical:
        prob_linea_esterna=0
      elif vento>=v_collapse:   
@@ -1735,89 +1735,83 @@ def calcola_prob_linea_esterna_ice(m_mm,M_mm):
     return int(round(prob_ice*100))
 
 def calcola_prob_pali_legnoacciaio_nuovi(vento):
-     mu= 58
-     sd = 7
+     theta= 58.85
+     beta=0.198
      v_critical=40
      v_collapse=80
-     curva = lognorm(sd / mu, scale=mu)
-     if vento<v_critical:
-       prob_linea_pali=0
-     elif vento>=v_collapse:   
-        prob_linea_pali=1
+     curva = lognorm(s=beta, scale=theta)
+     if vento<v_critical: return 0
+     elif vento>=v_collapse: return 100
      else:   
-        prob_linea_pali=curva.cdf(vento)
-     return round(prob_linea_pali*100)
+        prob_guasto_pali=curva.cdf(vento)
+     return round(prob_guasto_pali*100)
 
 def calcola_prob_pali_legno_20(vento):
-     mu= 55
-     sd = 4.5
-     v_critical=36
-     v_collapse=72
-     curva = lognorm(sd / mu, scale=mu)
-     if vento<v_critical:
-       prob_linea_pali=0
-     elif vento>=v_collapse:   
-        prob_linea_pali=1
+     theta= 55.01
+     beta=0.19
+     v_critical=40
+     v_collapse=80
+     curva = lognorm(s=beta, scale=theta)
+     if vento<v_critical: return 0
+     elif vento>=v_collapse: return 100
      else:   
-        prob_linea_pali=curva.cdf(vento)
-     return round(prob_linea_pali*100)
+        prob_guasto_pali=curva.cdf(vento)
+     return round(prob_guasto_pali*100)
 
 def calcola_prob_pali_legno_40(vento):
-     mu= 42
-     sd = 5
-     v_critical=27
-     v_collapse=60
-     curva = lognorm(sd / mu, scale=mu)
-     if vento<v_critical:
-       prob_linea_pali=0
-     elif vento>=v_collapse:   
-        prob_linea_pali=1
+     theta= 44.77
+     beta=0.235
+     v_critical=40
+     v_collapse=80
+     curva = lognorm(s=beta, scale=theta)
+     if vento<v_critical: return 0
+     elif vento>=v_collapse: return 100
      else:   
-        prob_linea_pali=curva.cdf(vento)
-     return round(prob_linea_pali*100)
+        prob_guasto_pali=curva.cdf(vento)
+     return round(prob_guasto_pali*100)
 
 def calcola_prob_pali_legno_60(vento):
-     mu= 28
-     sd = 5
-     v_critical=17
-     v_collapse=50
-     curva = lognorm(sd / mu, scale=mu)
-     if vento<v_critical:
-       prob_linea_pali=0
-     elif vento>=v_collapse:   
-        prob_linea_pali=1
+     theta= 32.05
+     beta=0.303
+     v_critical=40
+     v_collapse=80
+     curva = lognorm(s=beta, scale=theta)
+     if vento<v_critical: return 0
+     elif vento>=v_collapse: return 100
      else:   
-        prob_linea_pali=curva.cdf(vento)
-     return round(prob_linea_pali*100)
+        prob_guasto_pali=curva.cdf(vento)
+     return round(prob_guasto_pali*100)
 
 def calcola_tp65(temperatura):
+     temp_spire=65
+     temp_hotspot=15
      if temperatura<=30:
        percentuale_riduzione_vita=0              
      else:   
-       esponente=(6972.15/(353+temperatura))-13.391
+       esponente=(6972.15/(273+(temp_spire+temp_hotspot+temperatura)))-13.391
        decadimento_anni=(10**esponente)/8760
        percentuale_riduzione_vita=tronca(((7.4-decadimento_anni)/7.4)*100, 1)
      return round(percentuale_riduzione_vita)
 
 def calcola_td65(temperatura):
+     temp_spire=65
+     temp_hotspot=15
      if temperatura<=30:
        percentuale_riduzione_vita=0              
      else:   
-       esponente=(6328.80/(353+temperatura))-11.269
+       esponente=(6328.80/(273+(temp_spire+temp_hotspot+temperatura)))-11.269
        decadimento_anni=(10**esponente)/8760
        percentuale_riduzione_vita=tronca(((20.5-decadimento_anni)/20.5)*100, 1)
      return round(percentuale_riduzione_vita)
 
 def calcola_flood_failure_cabina(flood_depth):
-     mu= 150
-     sd = 28
-     v_critical=50
-     v_collapse=250
-     curva = lognorm(sd / mu, scale=mu)
-     if flood_depth<v_critical:
-       prob_flood_cabina=0
-     elif flood_depth>=v_collapse:   
-        prob_flood_cabina=1
+     theta= 139.89
+     beta=0.15
+     v_critical=80
+     v_collapse=210
+     curva = lognorm(s=beta, scale=theta)
+     if flood_depth<v_critical: return 0
+     elif flood_depth>=v_collapse: return 100
      else:   
         prob_flood_cabina=curva.cdf(flood_depth)
      return round(prob_flood_cabina*100)
