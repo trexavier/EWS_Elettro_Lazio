@@ -1,4 +1,4 @@
-
+# Importazione dei moduli Python
 import os
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QRadioButton, QGroupBox,QPushButton,QButtonGroup,\
@@ -20,24 +20,26 @@ from pathlib import PureWindowsPath
 import elabora_scenario
 import elabora_scenario_002
 
-#from PyQt5 import QtCore
-#import folium
-#from folium import GeoJson
-#from pyproj import Transformer
-#import importlib
-#import openpyxl
+# Modulo da abilitare per misurare le performance in secondi
+#import time
+# ...e questo è il codice da inserire
+#start_counter_ns = time.perf_counter_ns()
+#procedura/funzione()
+#end_counter_ns = time.perf_counter_ns()
+#timer_ns = end_counter_ns - start_counter_ns
+#print(timer_ns/1000000000)
 
 
 path = PureWindowsPath(os.getcwd()).as_posix()
 
-#tronca numeri float
+# tronca numeri float dei dati climatici
 def tronca(numero_float, posizioni_decimali):
     if math.isnan(numero_float)==False:
          moltiplicatore = 10 ** posizioni_decimali
          return int(numero_float * moltiplicatore) / moltiplicatore
 
 #----------------------------------------------FUNZIONI PULSANTI TOOLBAR-------------------------------------------------------
-#genera un nuovo scenario (dati meteo o analisi rischio)
+# Genera un nuovo scenario (dati meteo o analisi rischio)
 def elabora():
     rete=0
 
@@ -94,9 +96,9 @@ def elabora():
 
     
     else:#poligoni da 0.25 o 0.1 gradi
-        if radio_analisi_meteo.isChecked() and radio_dato_temp.isChecked():        
+        if radio_analisi_meteo.isChecked() and radio_dato_temp.isChecked():            
            elabora_scenario.elabora_solo_meteo_temperatura(rete,geo_dataframe_corrente)
-           carica_immagine_rischio_default()
+           carica_immagine_rischio_default()                 
         if radio_analisi_meteo.isChecked() and radio_dato_precip.isChecked():        
            elabora_scenario.elabora_solo_meteo_precipitazioni(rete,geo_dataframe_corrente)
            carica_immagine_rischio_default()
@@ -141,7 +143,8 @@ def elabora():
 
 
 
-#chiede se si vuole uscire dallo scenario corrente e caricare un nuovo scenario salvato nella cartella SCENARI 
+# Chiede se si vuole uscire dallo scenario corrente e caricare un nuovo scenario 
+# salvato nella cartella SCENARI 
 def pulsante_apri_scenario():
     if toolbar_pulsante_chiudi_scenario.isEnabled():
         msg = QMessageBox()
@@ -156,7 +159,7 @@ def pulsante_apri_scenario():
     else:
         carica_file_dati_scenario()
 
-#carica un nuovo scenario dalla cartella SCENARI (file .feather)
+# Carica un nuovo scenario dalla cartella SCENARI (file .feather)
 def carica_file_dati_scenario():
     global file_dialog_carica
     file_dialog_carica=QFileDialog()
@@ -179,7 +182,7 @@ def carica_file_dati_scenario():
           msg.setStandardButtons(QMessageBox.Ok)
           msg.show()
 
-#salva lo scenario corrente nella cartella SCENARI
+# Salva lo scenario corrente nella cartella SCENARI
 def pulsante_salva_scenario():
     global file_dialog_salva_scenario
     file_dialog_salva_scenario=QFileDialog()
@@ -187,7 +190,7 @@ def pulsante_salva_scenario():
     if filename_scenario:
             shutil.copy('./conf/analisi_corrente/geo_dataframe_base.feather', str(filename_scenario))
 
-#chiede se si vuole uscire dallo scenario corrente
+# Chiede se si vuole uscire dallo scenario corrente
 def pulsante_chiudi_scenario():
     msg = QMessageBox()
     msg.setIcon(QMessageBox.Icon.Question)
@@ -198,7 +201,7 @@ def pulsante_chiudi_scenario():
     if val==1024:#codice del pulsante OK
         chiudi_scenario()
 
-#chiude lo scenario corrente
+# Chiude lo scenario corrente
 def chiudi_scenario():
     analisi.setDisabled(True)
     simulazione.setDisabled(True)    
@@ -226,9 +229,9 @@ def chiudi_scenario():
     toolbar_pulsante_scarica_dati_meteo_002.setDisabled(False)
     toolbar_combobox_scarica_dati_meteo_002_seleziona_provincia.setDisabled(False)
 
-
-#scarica i dati meteo richiamando l'api per ciascun valore di coordinata presente nella lista coord_025_list e crea il dataframe
-#completo delle probabilità di failure richiamando le funzioni delle curve di fragilità
+# SCARICA DATI CLIMATICI 0.25 gradi (intera regione)
+# Scarica i dati meteo richiamando l'api per ciascun valore di coordinata presente nella lista coord_025_list 
+# e crea il dataframe completo delle probabilità di failure richiamando le funzioni delle curve di fragilità
 def pulsante_scarica_dati_meteo_025():
     
     #crea un dataframe vuoto, solo con le intestazioni delle colonne
@@ -271,7 +274,14 @@ def pulsante_scarica_dati_meteo_025():
                                        'bk_rain_sum',
                                        'bk_weather_code',
                                        'bk_precipitation_hours',
-                                       'bk_river_discharge'])
+                                       'bk_river_discharge',
+                                       'num_tralicci',
+                                       'm_power_line',
+                                       'm_power_cable',
+                                       'num_pali',
+                                       'num_cabine',
+                                       'num_tp',
+                                       'num_td'])
     
     coord_025_list=[
         [42.75,11.75],[42.75,12.00],[42.75,12.25],[42.75,13.00],[42.75,13.25],[42.75,13.50],[42.50,11.50],[42.50,11.75],[42.50,12.00],[42.50,12.25],
@@ -334,18 +344,30 @@ def pulsante_scarica_dati_meteo_025():
                                                            tronca(dati_api["rain_sum"][j],0),
                                                            dati_api["weather_code"][j],
                                                            dati_api["precipitation_hours"][j],
+                                                           '',
+                                                           '',
+                                                           '',
+                                                           '',
+                                                           '',
+                                                           '',
+                                                           '',
                                                            '']
                     
         valore_bar=round((100/elementi)*avanzamento);bar.setValue(valore_bar)
 
 
     df_ordinato=pd_dataframe.sort_values(by=['giorno','lat','lon']).reset_index()
-    #carica i confini regionali
+
+    # Carica i confini regionali
     confini_regione = gpd.read_feather('./conf/confini/confini_regione_lazio.feather')
     geo_confini = gpd.GeoSeries(confini_regione["geometry"]).simplify(tolerance=0.001)
     df2 = gpd.GeoDataFrame({'geometry': geo_confini}, crs=4326)
+
+    # Carica i componenti dell'infrastruttura elettrica dell'intera regione
+    componenti = gpd.read_feather('./conf/rete_elettrica/Lazio_componenti_025deg.feather')
     
-    #calcola le intersezioni tra i confini regionali ed i poligoni ifs 025, popola il dataframe con i valori cdf    
+    # Calcola le intersezioni tra i confini regionali ed i poligoni ifs 025, 
+    # popola il dataframe con i valori cdf e il numero di componenti elettrici
     num_rows = len(df_ordinato)
     avanzamento=0;elementi=num_rows
     for i in range(0,num_rows):
@@ -371,9 +393,18 @@ def pulsante_scarica_dati_meteo_025():
            df_ordinato.at[i,'prob_pali_l_60']=calcola_prob_pali_legno_60(df_ordinato.at[i,'wind_speed_10m_max'])
            df_ordinato.at[i,'tp65']=calcola_tp65(df_ordinato.at[i,'temperature_2m_max'])
            df_ordinato.at[i,'td65']=calcola_td65(df_ordinato.at[i,'temperature_2m_max'])
+
+           df_ordinato.at[i,'num_tralicci']=componenti.at[i,'num_tralicci']
+           df_ordinato.at[i,'m_power_line']=componenti.at[i,'power_line']
+           df_ordinato.at[i,'m_power_cable']=componenti.at[i,'power_cable']
+           df_ordinato.at[i,'num_pali']=componenti.at[i,'pali']
+           df_ordinato.at[i,'num_cabine']=componenti.at[i,'cabine']
+           df_ordinato.at[i,'num_tp']=componenti.at[i,'tp']
+           df_ordinato.at[i,'num_td']=componenti.at[i,'td']
+           
            valore_bar=round((100/elementi)*avanzamento);bar.setValue(valore_bar)
 
-    #crea il geodataframe con le geometrie (overlay)      
+    # Crea il geodataframe con le geometrie (overlay)      
     geo=gpd.GeoDataFrame(df_ordinato, geometry='geometry')
     if len(geo)==385:
          geo.to_feather('./conf/analisi_corrente/geo_dataframe_base.feather')
@@ -383,7 +414,7 @@ def pulsante_scarica_dati_meteo_025():
          timestamp = ct.timestamp()
          date_time = datetime.fromtimestamp(timestamp)
          data = date_time.strftime("%Y_%m_%d_%H%M%S_025deg")
-         geo.to_feather('./scenari/' + 'Lazio_' + data + '.feather') #salva i dati nello storico
+         geo.to_feather('./scenari/' + 'Lazio_' + data + '.feather') #salva i dati nella cartella SCENARI
          abilita_elabora_scenario()
     else:
         msg = QMessageBox()
@@ -393,9 +424,14 @@ def pulsante_scarica_dati_meteo_025():
         msg.setStandardButtons(QMessageBox.Ok)
         msg.show()
 
-#scarica i dati meteo richiamando l'api per ciascun valore di coordinata presente nella lista coord_01_list e crea il dataframe
-#completo delle probabilità di failure richiamando le funzioni delle curve di fragilità
+    
+
+
+# SCARICA DATI CLIMATICI 0.1 gradi (intera regione)
+# Scarica i dati meteo richiamando l'api per ciascun valore di coordinata presente nella lista coord_01_list e
+# crea il dataframe completo delle probabilità di failure richiamando le funzioni delle curve di fragilità
 def pulsante_scarica_dati_meteo_01():
+    
     pd_dataframe=pd.DataFrame(columns=['giorno',
                                        'lat',
                                        'lon',
@@ -435,7 +471,14 @@ def pulsante_scarica_dati_meteo_01():
                                        'bk_rain_sum',
                                        'bk_weather_code',
                                        'bk_precipitation_hours',
-                                       'bk_river_discharge'])
+                                       'bk_river_discharge',
+                                       'num_tralicci',
+                                       'm_power_line',
+                                       'm_power_cable',
+                                       'num_pali',
+                                       'num_cabine',
+                                       'num_tp',
+                                       'num_td'])
     
     coord_01_list=[
                   [42.875,11.875],[42.875,11.750],[42.750,11.750],[42.750,11.875],[42.750,12.000],[42.750,13.125],[42.750,13.250],[42.750,13.375],[42.625,11.625],
@@ -511,17 +554,29 @@ def pulsante_scarica_dati_meteo_01():
                                                            tronca(dati_api["rain_sum"][j],0),
                                                            dati_api["weather_code"][j],
                                                            dati_api["precipitation_hours"][j],
+                                                           '',
+                                                           '',
+                                                           '',
+                                                           '',
+                                                           '',
+                                                           '',
+                                                           '',
                                                            '']
                     
         valore_bar=round((100/elementi)*avanzamento);bar.setValue(valore_bar)
     
     df_ordinato=pd_dataframe.sort_values(by=['giorno','lat','lon']).reset_index()
-    #carica i confini regionali
+
+    # Carica i confini regionali
     confini_regione = gpd.read_feather('./conf/confini/confini_regione_lazio.feather')
     geo_confini = gpd.GeoSeries(confini_regione["geometry"]).simplify(tolerance=0.001)
     df2 = gpd.GeoDataFrame({'geometry': geo_confini}, crs=4326)
+
+    # Carica i componenti dell'infrastruttura elettrica dell'intera regione
+    componenti = gpd.read_feather('./conf/rete_elettrica/Lazio_componenti_01deg.feather')
     
-    #calcola le intersezioni tra i confini regionali ed i poligoni 01 modello DWD ICON, popola il dataframe con i valori cdf    
+    # Calcola le intersezioni tra i confini regionali ed i poligoni 01 modello DWD ICON, 
+    # popola il dataframe con i valori cdf    
     num_rows = len(df_ordinato)
     avanzamento=0;elementi=num_rows;bar.setValue(avanzamento)
     for i in range(0,num_rows):
@@ -547,9 +602,17 @@ def pulsante_scarica_dati_meteo_01():
            df_ordinato.at[i,'prob_pali_l_60']=calcola_prob_pali_legno_60(df_ordinato.at[i,'wind_speed_10m_max'])
            df_ordinato.at[i,'tp65']=calcola_tp65(df_ordinato.at[i,'temperature_2m_max'])
            df_ordinato.at[i,'td65']=calcola_td65(df_ordinato.at[i,'temperature_2m_max'])
+
+           df_ordinato.at[i,'num_tralicci']=componenti.at[i,'num_tralicci']
+           df_ordinato.at[i,'m_power_line']=componenti.at[i,'power_line']
+           df_ordinato.at[i,'m_power_cable']=componenti.at[i,'power_cable']
+           df_ordinato.at[i,'num_pali']=componenti.at[i,'pali']
+           df_ordinato.at[i,'num_cabine']=componenti.at[i,'cabine']
+           df_ordinato.at[i,'num_tp']=componenti.at[i,'tp']
+           df_ordinato.at[i,'num_td']=componenti.at[i,'td']
            valore_bar=round((100/elementi)*avanzamento);bar.setValue(valore_bar)
 
-    #crea il geodataframe con le geometrie (overlay)      
+    # Crea il geodataframe con le geometrie (overlay)      
     geo=gpd.GeoDataFrame(df_ordinato, geometry='geometry')
     if len(geo)==1155:
          geo.to_feather('./conf/analisi_corrente/geo_dataframe_base.feather')
@@ -569,8 +632,14 @@ def pulsante_scarica_dati_meteo_01():
         msg.setStandardButtons(QMessageBox.Ok)
         msg.show()
 
-#scarica i dati meteo richiamando l'api per ciascun valore di coordinata presente nella lista coord_002_list e crea il dataframe
-#completo delle probabilità di failure richiamando le funzioni delle curve di fragilità
+    
+
+
+
+
+# SCARICA DATI CLIMATICI 0.02 gradi (provincia selezionata)
+#scarica i dati meteo richiamando l'api per ciascun valore di coordinata presente nella lista coord_002_list 
+# e crea il dataframe #completo delle probabilità di failure richiamando le funzioni delle curve di fragilità
 def pulsante_scarica_dati_meteo_002():
     pd_dataframe=pd.DataFrame(columns=['giorno',
                                        'lat',
@@ -611,7 +680,14 @@ def pulsante_scarica_dati_meteo_002():
                                        'bk_rain_sum',
                                        'bk_weather_code',
                                        'bk_precipitation_hours',
-                                       'bk_river_discharge'])
+                                       'bk_river_discharge',
+                                       'num_tralicci',
+                                       'm_power_line',
+                                       'm_power_cable',
+                                       'num_pali',
+                                       'num_cabine',
+                                       'num_tp',
+                                       'num_td'])
     
     provincia=toolbar_combobox_scarica_dati_meteo_002_seleziona_provincia.currentText()
 
@@ -1228,25 +1304,45 @@ def pulsante_scarica_dati_meteo_002():
                                                            tronca(dati_api["rain_sum"][j],0),
                                                            dati_api["weather_code"][j],
                                                            dati_api["precipitation_hours"][j],
-                                                           tronca(river_discharge["river_discharge"][j],1)]
+                                                           tronca(river_discharge["river_discharge"][j],1),
+                                                           '',
+                                                           '',
+                                                           '',
+                                                           '',
+                                                           '',
+                                                           '',
+                                                           '']
                     
         valore_bar=round((100/elementi)*avanzamento);bar.setValue(valore_bar)
 
     
     df_ordinato=pd_dataframe.sort_values(by=['giorno','lat','lon']).reset_index()
-    #carica i confini provinciali    
+
+    # Carica i confini provinciali    
     geo_confini = gpd.GeoSeries(confini_provincia["geometry"]).simplify(tolerance=0.001)
     df2 = gpd.GeoDataFrame({'geometry': geo_confini}, crs=4326)
     
-    #calcola le intersezioni tra i confini provinciali ed i poligoni 002 modello ARPAE ICON2I, popola il dataframe con i valori cdf
+    # Carica le soglie di allagamento e i componenti dell'infrastruttura elettrica
+    # della specifica provincia
     num_rows = len(df_ordinato)
     avanzamento=0;elementi=num_rows;bar.setValue(avanzamento)
-    #carica le soglie di discharge
-    if num_rows==2205: df = pd.read_excel('./conf/aree_pericolo_alluvione/soglie_latina.xlsx')
-    if num_rows==3273: df = pd.read_excel('./conf/aree_pericolo_alluvione/soglie_viterbo.xlsx')
-    if num_rows==2529: df = pd.read_excel('./conf/aree_pericolo_alluvione/soglie_rieti.xlsx')
-    if num_rows==4818: df = pd.read_excel('./conf/aree_pericolo_alluvione/soglie_roma.xlsx')
-    if num_rows==2889: df = pd.read_excel('./conf/aree_pericolo_alluvione/soglie_frosinone.xlsx')
+    if num_rows==2205: #LATINA
+        df = pd.read_excel('./conf/aree_pericolo_alluvione/soglie_latina.xlsx')
+        componenti = gpd.read_feather('./conf/rete_elettrica/Latina_componenti_002deg.feather')
+    if num_rows==3273: #VITERBO
+        df = pd.read_excel('./conf/aree_pericolo_alluvione/soglie_viterbo.xlsx')
+        componenti = gpd.read_feather('./conf/rete_elettrica/Viterbo_componenti_002deg.feather')
+    if num_rows==2529: #RIETI
+        df = pd.read_excel('./conf/aree_pericolo_alluvione/soglie_rieti.xlsx')
+        componenti = gpd.read_feather('./conf/rete_elettrica/Rieti_componenti_002deg.feather')
+    if num_rows==4818: #ROMA
+        df = pd.read_excel('./conf/aree_pericolo_alluvione/soglie_roma.xlsx')
+        componenti = gpd.read_feather('./conf/rete_elettrica/Roma_componenti_002deg.feather')
+    if num_rows==2889: #FROSINONE
+        df = pd.read_excel('./conf/aree_pericolo_alluvione/soglie_frosinone.xlsx')
+        componenti = gpd.read_feather('./conf/rete_elettrica/Frosinone_componenti_002deg.feather')
+    # Calcola le intersezioni tra i confini provinciali ed i poligoni 002 modello ARPAE ICON2I, 
+    # popola il dataframe con i valori cdf e i componenti dell'infrastruttura
     for i in range(0,num_rows):
            avanzamento=avanzamento+1
            poligono_coord=(df_ordinato.at[i,'poligono_002'])
@@ -1272,9 +1368,17 @@ def pulsante_scarica_dati_meteo_002():
            df_ordinato.at[i,'td65']=calcola_td65(df_ordinato.at[i,'temperature_2m_max'])
            df_ordinato.at[i,'flood_depth']=calcola_flood_depth(df_ordinato.at[i,'flood_warning'],df_ordinato.at[i,'river_discharge'],df_ordinato.at[i,'ts_discharge'],df_ordinato.at[i,'flood_factor'])
            df_ordinato.at[i,'flood_risk_cabina']=calcola_flood_failure_cabina(df_ordinato.at[i,'flood_depth'])
+           
+           df_ordinato.at[i,'num_tralicci']=componenti.at[i,'num_tralicci']
+           df_ordinato.at[i,'m_power_line']=componenti.at[i,'power_line']
+           df_ordinato.at[i,'m_power_cable']=componenti.at[i,'power_cable']
+           df_ordinato.at[i,'num_pali']=componenti.at[i,'pali']
+           df_ordinato.at[i,'num_cabine']=componenti.at[i,'cabine']
+           df_ordinato.at[i,'num_tp']=componenti.at[i,'tp']
+           df_ordinato.at[i,'num_td']=componenti.at[i,'td']
            valore_bar=round((100/elementi)*avanzamento);bar.setValue(valore_bar)
 
-    #crea il geodataframe con le geometrie (overlay)      
+    # Crea il geodataframe con le geometrie (overlay)      
     geo=gpd.GeoDataFrame(df_ordinato, geometry='geometry')
     if (len(geo)==2205 or len(geo)==3273 or len(geo)==2529 or len(geo)==4818 or len(geo)==2889):
         geo.to_feather('./conf/analisi_corrente/geo_dataframe_base.feather')
@@ -1293,9 +1397,10 @@ def pulsante_scarica_dati_meteo_002():
         msg.setText("Dati incompleti/non disponibili sul server remoto. Riprovare all'inizio della prossima ora!")
         msg.setStandardButtons(QMessageBox.Ok)
         msg.show()
+    
 
-
-#aggiorna il dataframe ricaricando le soglie portata corsi d'acqua dei file xlsx, eventualmente modificate
+# Aggiorna il dataframe ricaricando le soglie portata corsi d'acqua dei file xlsx,
+# eventualmente modificate dall'utente
 def ricarica_soglie():
     geo_dataframe_corrente = gpd.read_feather('./conf/analisi_corrente/geo_dataframe_base.feather')
     num_rows=len(geo_dataframe_corrente)
@@ -1328,7 +1433,8 @@ def ricarica_soglie():
     msg.show()
 
 
-#salva la mappa dello scenario corrente in un file html, in modo da essere utilizzata in altre applicazioni
+# Salva la mappa dello scenario corrente in un file html, in modo da essere utilizzata 
+# in altre applicazioni
 def pulsante_salva_mappa():
     global file_dialog_salva_mappa
     file_dialog_salva_mappa=QFileDialog()
@@ -1336,12 +1442,12 @@ def pulsante_salva_mappa():
     if filename_mappa:
             shutil.copy('./conf/analisi_corrente/analisi_map.html', str(filename_mappa))
 
-#apre il dataframe in excel
+# Apre il dataframe in excel
 def apri_dataframe_excel():
     file = "E:\\0_Tesi\\tool\\conf\\analisi_corrente\\geo_dataframe_base.xlsx"
     os.startfile(file)
 
-#apre il manuale html nel browser predefinito
+# Apre il manuale html nel browser predefinito
 def apri_manuale_html():
     fileguida="file:///" + path + "/conf/manuale/EWS_Elettro_Lazio_manuale.htm"
     webbrowser.open_new(fileguida)
@@ -1365,11 +1471,11 @@ def apri_manuale_html():
 
 
 
+#----------------------------------- VARIE --------------------------------------
 
 
-
-#ripristina i dati meteo originari e ricalcola le cdf (prob failure), nel caso fossero state apportate modifiche ai dati meteo 
-# con le funzioni di simulazione e l'utente volesse tornare ai dati iniziali
+# Ripristina i dati meteo originari e ricalcola le cdf (prob failure), nel caso fossero state apportate
+# modifiche ai dati meteo con le funzioni di simulazione e l'utente volesse tornare ai dati iniziali
 def reset_dati():
     geo_dataframe_corrente = gpd.read_feather('./conf/analisi_corrente/geo_dataframe_base.feather')
     num_rows = len(geo_dataframe_corrente)
@@ -1416,7 +1522,8 @@ def reset_dati():
     msg.show()
 
 
-#applica i nuovi dati meteo e ricalcola le funzioni cdf (failure) dopo la modifica dei parametri meteo nel box simulazione
+# Applica i nuovi dati meteo e ricalcola le funzioni cdf (failure) dopo la modifica 
+# dei parametri meteo nel box simulazione
 def applica_dati_simulazione():
     if (radio_temp_off.isChecked()==True) and (radio_vento_off.isChecked()==True) and (radio_precip_off.isChecked()==True) and (radio_neve_off.isChecked()==True) and\
        (radio_pioggia_off.isChecked()==True) and (radio_ghiaccio_jones_off.isChecked()==True) and (radio_ghiaccio_nojones_off.isChecked()==True) and\
@@ -1640,23 +1747,26 @@ def applica_dati_simulazione():
             msg_modifiche_ok.setStandardButtons(QMessageBox.Ok)
             msg_modifiche_ok.show()
     
-        
-#se il weather code corrisponde a piogge del tipo FREEZING, calcola la stima dello spessore del ghiaccio accumulato 
-# sulle linee (tickness) con la formula di Jones. 
+         
+# Calcola la stima dello spessore del ghiaccio accumulato 
+# sulle linee (tickness) con la formula di Jones,
+# Ss il weather code corrisponde a piogge del tipo FREEZING,
 def calcola_stima_m_ice(cod_meteo, ore_freezing, vento, precipitazioni):
    if (cod_meteo==56 or cod_meteo==57 or cod_meteo==66 or cod_meteo==67) and precipitazioni>0:
       precipitation_rate=precipitazioni/ore_freezing
       di=0.9 #densità ghiaccio
       pi_greco=3.1415
       dw=1 #densità acqua
-      lwc=0.067*(pow(precipitation_rate,0.846)) #liquid water content
-      stima_m_ice=round((ore_freezing/(precipitation_rate/(di*pi_greco)))*math.sqrt(pow((precipitation_rate*dw),2)+pow((3.6+vento*lwc),2)))
+      lwc=0.067*(pow(precipitation_rate,0.846)) #acqua liquida contenuta
+      stima_m_ice=round((ore_freezing/(di*pi_greco))*math.sqrt(pow((precipitation_rate*dw),2)+pow((3.6*vento*lwc),2)))
    else:
       stima_m_ice=0
    return stima_m_ice
 
-#calcola l'altezza dell'alluvione (solo se si tratta di una zona pericolosa, la portata non è nulla, è maggiore di zero ed è maggiore
-#della soglia esondazione e la soglia esondazione non è zero)
+# Stima l'altezza dell'alluvione (restituisce 0 cm ovvero nessun allagamento quando:
+# l'area non rientra tra quelle con pericolo allagamento, la portata è zero,
+# la portata è minore della soglia di allagamento, la soglia di allagamento è 0,
+# la portata è nulla)
 def calcola_flood_depth(flood_pericolo,river_discharge, ts_discharge, flood_factor):
     if (flood_pericolo==0) or (river_discharge==0) or (river_discharge<=ts_discharge) or (ts_discharge==0) or (math.isnan(river_discharge)==True): 
         return 0
@@ -1665,7 +1775,7 @@ def calcola_flood_depth(flood_pericolo,river_discharge, ts_discharge, flood_fact
         flood=tronca((flood_factor*var_percentuale),1)
         return flood
 
-#aggiorna le label degli slider con i nuovi valori 
+# Aggiorna le label degli slider con i nuovi valori (barre del box simulazione)
 def cambia_label_slider_temp():
     label_slider_temp.setText(str(slider_temp.value()))
 
@@ -1684,10 +1794,19 @@ def cambia_label_slider_neve():
 def cambia_label_slider_discharge():
     label_slider_discharge.setText(str(slider_discharge.value()))
 
+#----------------------------------- FINE VARIE --------------------------------------
+
+
+
+
+
+
+
 
 
 #########################################  INIZIO FUNZIONI CDF #############################################
 
+# Indice giornaliero dell'ondata di calore
 def calcola_hwdi(temperatura, precipitazioni):
     hwdi=0
     if temperatura>33:
@@ -1696,7 +1815,7 @@ def calcola_hwdi(temperatura, precipitazioni):
         hwdi=hwdi+1
     return (hwdi)
 
-
+# Probabilità di failure dei tralicci esposti al forte vento
 def calcola_prob_tralicci(vento):
      theta= 88
      beta=0.336
@@ -1711,6 +1830,7 @@ def calcola_prob_tralicci(vento):
         prob_tralicci=curva.cdf(vento)
      return round(prob_tralicci*100)
 
+# Probabilità di failure linea sospesa esposta al forte vento
 def calcola_prob_linea_esterna(vento):
      theta= 47
      beta=0.198
@@ -1725,6 +1845,7 @@ def calcola_prob_linea_esterna(vento):
         prob_linea_esterna=curva.cdf(vento)
      return round(prob_linea_esterna*100)
 
+# Probabilità di failure linea sospesa esposta all'accumulo di ghiaccio
 def calcola_prob_linea_esterna_ice(m_mm,M_mm):
     if m_mm <= M_mm:
         prob_ice = 0
@@ -1734,6 +1855,7 @@ def calcola_prob_linea_esterna_ice(m_mm,M_mm):
         prob_ice = math.exp((0.6931*(m_mm-M_mm))/(4*M_mm))-1
     return int(round(prob_ice*100))
 
+# Probabilità di failure dei pali esposti al vento (pali nuovi in legno o acciaio)
 def calcola_prob_pali_legnoacciaio_nuovi(vento):
      theta= 58.85
      beta=0.198
@@ -1746,6 +1868,7 @@ def calcola_prob_pali_legnoacciaio_nuovi(vento):
         prob_guasto_pali=curva.cdf(vento)
      return round(prob_guasto_pali*100)
 
+# Probabilità di failure dei pali esposti al vento (pali in legno con 20 anni di operatività)
 def calcola_prob_pali_legno_20(vento):
      theta= 55.01
      beta=0.19
@@ -1758,6 +1881,7 @@ def calcola_prob_pali_legno_20(vento):
         prob_guasto_pali=curva.cdf(vento)
      return round(prob_guasto_pali*100)
 
+# Probabilità di failure dei pali esposti al vento (pali in legno con 40 anni di operatività)
 def calcola_prob_pali_legno_40(vento):
      theta= 44.77
      beta=0.235
@@ -1770,6 +1894,7 @@ def calcola_prob_pali_legno_40(vento):
         prob_guasto_pali=curva.cdf(vento)
      return round(prob_guasto_pali*100)
 
+# Probabilità di failure dei pali esposti al vento (pali in legno con 60 anni di operatività)
 def calcola_prob_pali_legno_60(vento):
      theta= 32.05
      beta=0.303
@@ -1782,6 +1907,7 @@ def calcola_prob_pali_legno_60(vento):
         prob_guasto_pali=curva.cdf(vento)
      return round(prob_guasto_pali*100)
 
+# Diminuzione vita dei trasformatori di potenza (tipo rise 65) esposti a temperature elevate
 def calcola_tp65(temperatura):
      temp_spire=65
      temp_hotspot=15
@@ -1793,6 +1919,7 @@ def calcola_tp65(temperatura):
        percentuale_riduzione_vita=tronca(((7.4-decadimento_anni)/7.4)*100, 1)
      return round(percentuale_riduzione_vita)
 
+# Diminuzione vita dei trasformatori di distribuzione (tipo rise 65) esposti a temperature elevate
 def calcola_td65(temperatura):
      temp_spire=65
      temp_hotspot=15
@@ -1804,6 +1931,7 @@ def calcola_td65(temperatura):
        percentuale_riduzione_vita=tronca(((20.5-decadimento_anni)/20.5)*100, 1)
      return round(percentuale_riduzione_vita)
 
+# Probabilità failure cabine elettriche esposte ad allagamento
 def calcola_flood_failure_cabina(flood_depth):
      theta= 139.89
      beta=0.15
@@ -1923,39 +2051,6 @@ def api_01_dwd_global(lat, lon):
     return daily_data, quota
 
 
-#GLOFas v4 Forecast, risoluzione 0.05 gradi, 3gg (da https://open-meteo.com/en/docs/flood-api)
-def api_005_glofas_v4(lat, lon):
-    import openmeteo_requests
-    import pandas as pd
-    import requests_cache
-    from retry_requests import retry
-    cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
-    retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
-    openmeteo = openmeteo_requests.Client(session = retry_session)
-    url = "https://flood-api.open-meteo.com/v1/flood"
-    params = {
-	"latitude": lat,
-	"longitude": lon,
-	"daily": "river_discharge",
-	"models": "forecast_v4",
-	"timezone": "auto",
-	"forecast_days": 3
-}
-    responses = openmeteo.weather_api(url, params=params)
-    response = responses[0]
-    daily = response.Daily()
-    daily_river_discharge = daily.Variables(0).ValuesAsNumpy()
-    daily_data = {"date": pd.date_range(
-	start = pd.to_datetime(daily.Time(), unit = "s", utc = True),
-	end = pd.to_datetime(daily.TimeEnd(), unit = "s", utc = True),
-	freq = pd.Timedelta(seconds = daily.Interval()),
-	inclusive = "left" )}
-
-    daily_data["river_discharge"] = daily_river_discharge    
-    daily_dataframe = pd.DataFrame(data = daily_data)
-    return daily_data
-
-
 #Italia Meteo ARPAE, modello ICON 2i, risoluzione 0.02 gradi, 3gg (da https://open-meteo.com)
 def api_002_arpae_icon_2i(lat, lon):
     import openmeteo_requests
@@ -1972,6 +2067,7 @@ def api_002_arpae_icon_2i(lat, lon):
 	"daily": ["temperature_2m_max", "wind_speed_10m_max", "snowfall_sum", "rain_sum", "precipitation_sum","weather_code", "precipitation_hours"],
 	"models": "italia_meteo_arpae_icon_2i",
 	"timezone": "auto",
+    "forecast_days": 3,
 	"wind_speed_unit": "ms"
     }
     responses = openmeteo.weather_api(url, params=params)
@@ -1998,9 +2094,48 @@ def api_002_arpae_icon_2i(lat, lon):
     daily_data["precipitation_sum"] = daily_precipitation_sum
     daily_data["weather_code"]=daily_weather_code
     daily_data["precipitation_hours"]=daily_precipitation_hours
-    quota=response.Elevation()        
+    #quota=response.Elevation()   
+    quota=0     
     return daily_data, quota
 
+#GLOFas v4 Forecast, risoluzione 0.05 gradi, 3gg (da https://open-meteo.com/en/docs/flood-api)
+def api_005_glofas_v4(lat, lon):
+    import openmeteo_requests
+    import pandas as pd
+    import requests_cache
+    from retry_requests import retry
+    cache_session = requests_cache.CachedSession('.cache', expire_after = 3600)
+    retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
+    openmeteo = openmeteo_requests.Client(session = retry_session)
+    url = "https://flood-api.open-meteo.com/v1/flood"
+    params = {
+	"latitude": lat,
+	"longitude": lon,
+	"daily": "river_discharge",
+	"models": "forecast_v4",
+	"timezone": "auto",
+	#"forecast_days": 3
+    # forecast days è stato commentato perchè il fornitore ha cambiato l'api e non è più possibile
+    # scaricare automaticamente le portate stimate dei prossimi 3 gg. Nel nuovo codice il fornitore
+    # di aspetta le date esatte di forecast (start_date e end_date), come di seguito.
+    # Bisognerebbe modificare il codice dell'api impostando nei parametri in ingresso alla funzione
+    # today+1 e today+3 in modo che le date siano aggiornate in automatico
+    "start_date": "2026-08-12",
+	"end_date": "2026-08-14",
+}
+    responses = openmeteo.weather_api(url, params=params)
+    response = responses[0]
+    daily = response.Daily()
+    daily_river_discharge = daily.Variables(0).ValuesAsNumpy()
+    daily_data = {"date": pd.date_range(
+	start = pd.to_datetime(daily.Time(), unit = "s", utc = True),
+	end = pd.to_datetime(daily.TimeEnd(), unit = "s", utc = True),
+	freq = pd.Timedelta(seconds = daily.Interval()),
+	inclusive = "left" )}
+
+    daily_data["river_discharge"] = daily_river_discharge    
+    daily_dataframe = pd.DataFrame(data = daily_data)
+    return daily_data
 
 #########################################  FINE FUNZIONI API  ##########################################
 
@@ -2036,7 +2171,8 @@ def carica_immagine_rischio_vento_linea_esterna():
     logoLabel.setFixedHeight(280)
     logoLabel.setFixedWidth(280)
 
-#la cdf del ghiaccio non è statica per cui dev'essere generata di volta in volta in base ai valori di m e M
+# La cdf del ghiaccio non è statica per cui dev'essere generata di volta in volta 
+# in base ai valori di m e M
 def carica_immagine_rischio_ghiaccio_linea_esterna():
     img_rischio.setDisabled(False)
     geo_dataframe_corrente = gpd.read_feather('./conf/analisi_corrente/geo_dataframe_base.feather')
@@ -2316,7 +2452,7 @@ def attiva_alluvione():
 
 ############################################# GUI APPLICAZIONE #############################################
 
-#CREA APPLICAZIONE E FINESTRA PRINCIPALE
+# CREA APPLICAZIONE E FINESTRA PRINCIPALE
 applicazione=QApplication(sys.argv)
 global file_dialog
 finestra_principale = QMainWindow()
@@ -2325,7 +2461,7 @@ finestra_principale.setWindowTitle('EWS Elettro Lazio')
 finestra_principale.statusBar().showMessage('Ready')
 finestra_principale.setStyleSheet("background-color:darkgray;")
 
-#CREA TOOLBAR E RELATIVI PULSANTI
+# CREA TOOLBAR E RELATIVI PULSANTI
 toolbar = QToolBar("toolbar")
 toolbar.setIconSize(QSize(32,32))
 toolbar.setMovable(False)
@@ -2399,7 +2535,7 @@ toolbar.addAction(toolbar_pulsante_info)
 widget_master=QWidget()#crea il widget principale dell'applicazione, quello che conterrà tutti gli altri widget
 layout = QHBoxLayout()#crea il contenitore di box con orientamento orizzontale
 
-#BLOCCO SX WIDGET LAYOUT CONTENENTE I BOX ANALISI,DATI METEO,EVENTO NATURALE e COMPONENTE (oltre al pulsante ELABORA SCENARIO)
+# BLOCCO SX WIDGET LAYOUT CONTENENTE I BOX ANALISI,DATI METEO,EVENTO NATURALE e COMPONENTE (oltre al pulsante ELABORA SCENARIO)
 blocco_selezione=QVBoxLayout()
 layout.addLayout(blocco_selezione)
 
@@ -2470,7 +2606,7 @@ radio_componente_trasformatore_p = QRadioButton("Trasformatore potenza")
 vbox_componente.addWidget(radio_componente_trasformatore_p)
 radio_componente_trasformatore_d = QRadioButton("Trasformatore distribuzione")
 vbox_componente.addWidget(radio_componente_trasformatore_d)
-radio_componente_cabina_primaria = QRadioButton("Cabina primaria")
+radio_componente_cabina_primaria = QRadioButton("Cabine elettriche")
 vbox_componente.addWidget(radio_componente_cabina_primaria)
 componente.setDisabled(True)
 
