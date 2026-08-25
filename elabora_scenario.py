@@ -1,4 +1,7 @@
+# Questo modulo gestisce la creazione degli scenari con risoluzione 0.25 e 0.1 gradi
+# su scala regionale
 
+# Importa moduli Python
 import folium
 from folium.plugins import GroupedLayerControl, MousePosition,MeasureControl,HeatMap
 import geopandas as gpd
@@ -8,12 +11,26 @@ import io
 import os
 from PIL import Image
 
+# Per le ondate di calore non è disponibile una statistica dei guasti. I guasti attesi vengono
+# stimati moltiplicando il generico "guasti medi" per il valore restituito dalla funzione sotto,
+# che riceve come argomento l'indice settimanale dell'ondata di calore
+def guasti_hw(indice):
+       if (indice<=10): return 1 # guasti medi del periodo
+       if (indice==11): return 2 # il doppio dei guasti medi del periodo
+       if (indice==12): return 3 # ....il triplo
+       if (indice==13): return 4 # ....quadruplo
+       if (indice==14): return 5 # massima ondata di calore, 5 volte i guasti medi
 
+# Restituisce la stima degli elementi elettrici che subiranno un guasti (vulnerabilità)
+def elementi_prob_guasto(percentuale, tot_elementi):
+       if (percentuale==0): return 0
+       else:
+           return round((tot_elementi/100)*percentuale)
 
 
 #--------------------------------------INIZIO DATI METEO----------------------------------------------------
 
-#elabora la mappa visualizzando i valori previsionali della temperatura nella regione (previsione 7gg)
+# Elabora la mappa visualizzando i valori previsionali della temperatura nella regione (previsione 7gg)
 def elabora_solo_meteo_temperatura(rete,dataframe):
     num_rows=len(dataframe)
     if num_rows==385:#poligoni 025
@@ -131,14 +148,15 @@ def elabora_solo_meteo_temperatura(rete,dataframe):
          linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
          linee_elettriche.add_to(layer_rete_elettrica)
          
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.Lon, df.Lat), crs="EPSG:4326")
-         folium.GeoJson(
-         gdf,
-         marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-         tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,
+         #vecchio codice per le cabine primarie
+         #layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
+         #df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
+         #gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.Lon, df.Lat), crs="EPSG:4326")
+         #folium.GeoJson(
+         #gdf,
+         #marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
+         #tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
+         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica]},collapsed=False,
                              exclusive_groups=False).add_to(my_map)
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -156,7 +174,7 @@ def elabora_solo_meteo_temperatura(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )#.add_to(layer_giorno1)
-           geo_j.add_child(folium.Tooltip("temp °C "+str(temperatura)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "temp °C "+str(temperatura)))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -174,7 +192,7 @@ def elabora_solo_meteo_temperatura(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("temp °C "+str(temperatura)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "temp °C "+str(temperatura)))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -192,7 +210,7 @@ def elabora_solo_meteo_temperatura(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("temp °C "+str(temperatura)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "temp °C "+str(temperatura)))
            geo_j.add_to(layer_giorno3)
     
     giorno4=(dataframe.at[g4,'giorno'])
@@ -210,7 +228,7 @@ def elabora_solo_meteo_temperatura(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("temp °C "+str(temperatura)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "temp °C "+str(temperatura)))
            geo_j.add_to(layer_giorno4)
     
     giorno5=(dataframe.at[g5,'giorno'])
@@ -228,7 +246,7 @@ def elabora_solo_meteo_temperatura(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("temp °C "+str(temperatura)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "temp °C "+str(temperatura)))
            geo_j.add_to(layer_giorno5)
               
     giorno6=(dataframe.at[g6,'giorno'])
@@ -246,7 +264,7 @@ def elabora_solo_meteo_temperatura(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("temp °C "+str(temperatura)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "temp °C "+str(temperatura)))
            geo_j.add_to(layer_giorno6)
 
     giorno7=(dataframe.at[g7,'giorno'])
@@ -264,7 +282,7 @@ def elabora_solo_meteo_temperatura(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("temp °C "+str(temperatura)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "temp °C "+str(temperatura)))
            geo_j.add_to(layer_giorno7)    
     
     
@@ -299,7 +317,7 @@ def elabora_solo_meteo_temperatura(rete,dataframe):
 
 
 
-#elabora la mappa visualizzando i valori previsionali del vento nella regione (previsione 7gg)
+# Elabora la mappa visualizzando i valori previsionali del vento nella regione (previsione 7gg)
 def elabora_solo_meteo_vento(rete,dataframe):
     num_rows=len(dataframe)
     if num_rows==385:#poligoni 025
@@ -415,14 +433,7 @@ def elabora_solo_meteo_vento(rete,dataframe):
          linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
          linee_elettriche.add_to(layer_rete_elettrica)
 
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.Lon, df.Lat), crs="EPSG:4326")
-         folium.GeoJson(
-         gdf,
-         marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-         tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,
+         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica]},collapsed=False,
                              exclusive_groups=False).add_to(my_map)
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -440,7 +451,7 @@ def elabora_solo_meteo_vento(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )#.add_to(layer_giorno1)
-           geo_j.add_child(folium.Tooltip("m/s "+str(vento)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "m/s "+str(vento)))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -458,7 +469,7 @@ def elabora_solo_meteo_vento(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("m/s "+str(vento)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "m/s "+str(vento)))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -476,7 +487,7 @@ def elabora_solo_meteo_vento(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("m/s "+str(vento)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "m/s "+str(vento)))
            geo_j.add_to(layer_giorno3)
     
     giorno4=(dataframe.at[g4,'giorno'])
@@ -494,7 +505,7 @@ def elabora_solo_meteo_vento(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("m/s "+str(vento)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "m/s "+str(vento)))
            geo_j.add_to(layer_giorno4)
     
     giorno5=(dataframe.at[g5,'giorno'])
@@ -512,7 +523,7 @@ def elabora_solo_meteo_vento(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("m/s "+str(vento)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "m/s "+str(vento)))
            geo_j.add_to(layer_giorno5)
               
     giorno6=(dataframe.at[g6,'giorno'])
@@ -530,7 +541,7 @@ def elabora_solo_meteo_vento(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("m/s "+str(vento)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "m/s "+str(vento)))
            geo_j.add_to(layer_giorno6)
 
     giorno7=(dataframe.at[g7,'giorno'])
@@ -548,7 +559,7 @@ def elabora_solo_meteo_vento(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("m/s "+str(vento)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "m/s "+str(vento)))
            geo_j.add_to(layer_giorno7)    
     
     
@@ -603,7 +614,7 @@ def elabora_solo_meteo_vento(rete,dataframe):
 
 
 
-#elabora la mappa visualizzando i valori previsionali della pioggia caduta nella regione (previsione 7gg)
+# Elabora la mappa visualizzando i valori previsionali della pioggia caduta nella regione (previsione 7gg)
 def elabora_solo_meteo_pioggia(rete,dataframe):
     num_rows=len(dataframe)
     if num_rows==385:#poligoni 025
@@ -719,14 +730,7 @@ def elabora_solo_meteo_pioggia(rete,dataframe):
          linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
          linee_elettriche.add_to(layer_rete_elettrica)
 
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.Lon, df.Lat), crs="EPSG:4326")
-         folium.GeoJson(
-         gdf,
-         marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-         tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,
+         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica]},collapsed=False,
                              exclusive_groups=False).add_to(my_map)
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -744,7 +748,7 @@ def elabora_solo_meteo_pioggia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(pioggia_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(pioggia_sum)))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -762,7 +766,7 @@ def elabora_solo_meteo_pioggia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(pioggia_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(pioggia_sum)))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -780,7 +784,7 @@ def elabora_solo_meteo_pioggia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(pioggia_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(pioggia_sum)))
            geo_j.add_to(layer_giorno3)
     
     giorno4=(dataframe.at[g4,'giorno'])
@@ -798,7 +802,7 @@ def elabora_solo_meteo_pioggia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(pioggia_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(pioggia_sum)))
            geo_j.add_to(layer_giorno4)
     
     giorno5=(dataframe.at[g5,'giorno'])
@@ -816,7 +820,7 @@ def elabora_solo_meteo_pioggia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("mm "+str(pioggia_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(pioggia_sum)))
            geo_j.add_to(layer_giorno5)
               
     giorno6=(dataframe.at[g6,'giorno'])
@@ -834,7 +838,7 @@ def elabora_solo_meteo_pioggia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("mm "+str(pioggia_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(pioggia_sum)))
            geo_j.add_to(layer_giorno6)
 
     giorno7=(dataframe.at[g7,'giorno'])
@@ -852,7 +856,7 @@ def elabora_solo_meteo_pioggia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("mm "+str(pioggia_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(pioggia_sum)))
            geo_j.add_to(layer_giorno7)    
     
     
@@ -890,7 +894,7 @@ def elabora_solo_meteo_pioggia(rete,dataframe):
 
 
 
-#elabora la mappa visualizzando i valori previsionali della neve caduta nella regione (previsioni 7gg)
+# Elabora la mappa visualizzando i valori previsionali della neve caduta nella regione (previsioni 7gg)
 def elabora_solo_meteo_neve(rete,dataframe):
     num_rows=len(dataframe)
     if num_rows==385:#poligoni 025
@@ -1006,14 +1010,7 @@ def elabora_solo_meteo_neve(rete,dataframe):
          linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
          linee_elettriche.add_to(layer_rete_elettrica)
 
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.Lon, df.Lat), crs="EPSG:4326")
-         folium.GeoJson(
-         gdf,
-         marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-         tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,
+         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica]},collapsed=False,
                              exclusive_groups=False).add_to(my_map)
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -1031,7 +1028,7 @@ def elabora_solo_meteo_neve(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(neve_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(neve_sum)))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -1049,7 +1046,7 @@ def elabora_solo_meteo_neve(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(neve_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(neve_sum)))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -1067,7 +1064,7 @@ def elabora_solo_meteo_neve(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(neve_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(neve_sum)))
            geo_j.add_to(layer_giorno3)
     
     giorno4=(dataframe.at[g4,'giorno'])
@@ -1085,7 +1082,7 @@ def elabora_solo_meteo_neve(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(neve_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(neve_sum)))
            geo_j.add_to(layer_giorno4)
     
     giorno5=(dataframe.at[g5,'giorno'])
@@ -1103,7 +1100,7 @@ def elabora_solo_meteo_neve(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("mm "+str(neve_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(neve_sum)))
            geo_j.add_to(layer_giorno5)
               
     giorno6=(dataframe.at[g6,'giorno'])
@@ -1121,7 +1118,7 @@ def elabora_solo_meteo_neve(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("mm "+str(neve_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(neve_sum)))
            geo_j.add_to(layer_giorno6)
 
     giorno7=(dataframe.at[g7,'giorno'])
@@ -1139,7 +1136,7 @@ def elabora_solo_meteo_neve(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("mm "+str(neve_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(neve_sum)))
            geo_j.add_to(layer_giorno7)    
     
     
@@ -1174,7 +1171,7 @@ def elabora_solo_meteo_neve(rete,dataframe):
 
 
 
-#elabora la mappa visualizzando i valori delle precipitazioni cadute nella regione (tot pioggia, neve, grandine....previsione 7gg)
+# Elabora la mappa visualizzando i valori delle precipitazioni cadute nella regione (tot pioggia, neve, grandine....previsione 7gg)
 def elabora_solo_meteo_precipitazioni(rete,dataframe):
     num_rows=len(dataframe)
     if num_rows==385:#poligoni 025
@@ -1291,14 +1288,7 @@ def elabora_solo_meteo_precipitazioni(rete,dataframe):
          linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
          linee_elettriche.add_to(layer_rete_elettrica)
 
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.Lon, df.Lat), crs="EPSG:4326")
-         folium.GeoJson(
-         gdf,
-         marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-         tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,
+         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica]},collapsed=False,
                              exclusive_groups=False).add_to(my_map)
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -1316,7 +1306,7 @@ def elabora_solo_meteo_precipitazioni(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(precipitation_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(precipitation_sum)))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -1334,7 +1324,7 @@ def elabora_solo_meteo_precipitazioni(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(precipitation_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(precipitation_sum)))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -1352,7 +1342,7 @@ def elabora_solo_meteo_precipitazioni(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(precipitation_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(precipitation_sum)))
            geo_j.add_to(layer_giorno3)
     
     giorno4=(dataframe.at[g4,'giorno'])
@@ -1370,7 +1360,7 @@ def elabora_solo_meteo_precipitazioni(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(precipitation_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(precipitation_sum)))
            geo_j.add_to(layer_giorno4)
     
     giorno5=(dataframe.at[g5,'giorno'])
@@ -1388,7 +1378,7 @@ def elabora_solo_meteo_precipitazioni(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("mm "+str(precipitation_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(precipitation_sum)))
            geo_j.add_to(layer_giorno5)
               
     giorno6=(dataframe.at[g6,'giorno'])
@@ -1406,7 +1396,7 @@ def elabora_solo_meteo_precipitazioni(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("mm "+str(precipitation_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(precipitation_sum)))
            geo_j.add_to(layer_giorno6)
 
     giorno7=(dataframe.at[g7,'giorno'])
@@ -1424,7 +1414,7 @@ def elabora_solo_meteo_precipitazioni(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("mm "+str(precipitation_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(precipitation_sum)))
            geo_j.add_to(layer_giorno7)    
     
     
@@ -1455,6 +1445,7 @@ def elabora_solo_meteo_precipitazioni(rete,dataframe):
     my_map.get_root().html.add_child(folium.Element(titolo_html))
     my_map.save('./conf/analisi_corrente/analisi_map.html')
     
+#--------------------------------------FINE DATI METEO----------------------------------------------------
 
 
 
@@ -1470,9 +1461,13 @@ def elabora_solo_meteo_precipitazioni(rete,dataframe):
 
 
 
-
-########################## ANALISI DEL RISCHIO (Curve di fragilità) ##############################
-#elabora la mappa visualizzando i valori dell'ondata di calore prevista nella regione (indice ARERA 7gg)
+#-------------------------------------- ANALISI VULNERABILITA' --------------------------------------
+# ONDATA DI CALORE LINEA INTERRATA
+# Elabora la mappa visualizzando poligoni di superficie 0.25 o 0.1 gradi.
+# Per ciascun poligono:
+# -Colorato con scala cromatica correlata all'indice settimanale
+# dell'ondata di calore prevista (indice ARERA 7gg),
+# -Tooltip con estensione linea interrata presente (metri), indice ondata di calore, guasti attesi
 def elabora_evento_hw(rete,dataframe):
     num_rows=len(dataframe)
     if num_rows==385:#poligoni 025
@@ -1571,7 +1566,7 @@ def elabora_evento_hw(rete,dataframe):
                    geo_j = folium.GeoJson(data=geo_j, color='blue', weight=2, fillColor= '#00000000')
                    geo_j.add_to(layer_provincia_frosinone)
 
-    grouped=dataframe.groupby(by=['lat','lon','geometry']).agg(hwwi=('hwdi', 'sum'),hwwi_HM=('hwdi_HM','sum'))
+    grouped=dataframe.groupby(by=['lat','lon','geometry']).agg(hwwi=('hwdi', 'sum'),hwwi_HM=('hwdi_HM','sum'), linea_presente=('m_power_cable','first'))
     grouped_dataframe=grouped.reset_index()
     
     step_color= StepColormap(["green","orange","red"], vmin=0, vmax=14, index=[0, 11, 13], caption="step")
@@ -1580,6 +1575,7 @@ def elabora_evento_hw(rete,dataframe):
             
     layer_HW = folium.FeatureGroup('Indice heat wave',overlay=False).add_to(my_map)
     for i in range (0,step):
+           linea=(grouped_dataframe.at[i,'linea_presente'])
            poligono=(grouped_dataframe.at[i,'geometry'])
            indice_settimanale_hwwi=grouped_dataframe.at[i,'hwwi']
            sim_geo = gpd.GeoSeries(poligono).simplify(tolerance=0.001)
@@ -1592,7 +1588,9 @@ def elabora_evento_hw(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("hwwi "+str(indice_settimanale_hwwi)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>"+"hwwi: " + str(indice_settimanale_hwwi) + "<br>" + 
+                                          "linea (m): " + str(linea) + "<br>" +
+                                          "guasti previsti: guasti medi x " + str(guasti_hw(indice_settimanale_hwwi))))
            geo_j.add_to(layer_HW)
 
 
@@ -1635,21 +1633,17 @@ def elabora_evento_hw(rete,dataframe):
                                             layer_provincia_viterbo,layer_provincia_rieti, layer_provincia_roma,\
                                             layer_provincia_latina,layer_provincia_frosinone]},collapsed=False,).add_to(my_map)
     if rete==1:
-         layer_rete_elettrica = folium.FeatureGroup("Rete elettrica",overlay=True, show=False).add_to(my_map)
-         dataframe_rete_elettrica = pd.read_feather('./conf/rete_elettrica/LAZIO_rete_elettrica.feather')
-         serie_elettrica=pd.DataFrame(dataframe_rete_elettrica)
-         coordinate_per_rete_elettrica=serie_elettrica['geometry']
-         linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
-         linee_elettriche.add_to(layer_rete_elettrica)
+         
+         layer_linea_interrata = folium.FeatureGroup("Linea interrata",overlay=True, show=False).add_to(my_map)
+         dataframe_linea_interrata = gpd.read_feather('./conf/rete_elettrica/Lazio_power_cable.feather')
+         folium.GeoJson(dataframe_linea_interrata,
+                        style_function=lambda feature: {
+                        "color": "red",
+                        "weight": 1,
+                        "fillOpacity": 0.9},
+                        zoom_on_click=True).add_to(layer_linea_interrata)
 
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.Lon, df.Lat), crs="EPSG:4326")
-         folium.GeoJson(
-         gdf,
-         marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-         tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,
+         GroupedLayerControl(groups={'rete elettrica': [layer_linea_interrata]},collapsed=False,
                              exclusive_groups=False).add_to(my_map)
     
     
@@ -1689,7 +1683,11 @@ def elabora_evento_hw(rete,dataframe):
 
 
 
-#elabora la mappa visualizzando la riduzione di vita prevista per i trasformatori di potenza nella regione (previsione 7gg)
+# TEMPERATURE ELEVATE TRASFORMATORI DI POTENZA
+# Elabora la mappa visualizzando poligoni di superficie 0.25 o 0.1 gradi.
+# Per ciascun poligono:
+# -Colorato con scala cromatica correlata alla riduzione vita dei componenti presenti (7gg)
+# -Tooltip con max temp raggiunte (°C), % riduz vita, numero di trasformatori impattati
 def elabora_evento_hw_trasformatore_p(rete,dataframe):
     num_rows=len(dataframe)
     if num_rows==385:#poligoni 025
@@ -1798,21 +1796,13 @@ def elabora_evento_hw_trasformatore_p(rete,dataframe):
                                             layer_provincia_latina,layer_provincia_frosinone]},collapsed=False,).add_to(my_map)
     
     if rete==1:
-         layer_rete_elettrica = folium.FeatureGroup("Rete elettrica",overlay=True, show=False).add_to(my_map)
-         dataframe_rete_elettrica = pd.read_feather('./conf/rete_elettrica/LAZIO_rete_elettrica.feather')
-         serie_elettrica=pd.DataFrame(dataframe_rete_elettrica)
-         coordinate_per_rete_elettrica=serie_elettrica['geometry']
-         linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
-         linee_elettriche.add_to(layer_rete_elettrica)
-
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.Lon, df.Lat), crs="EPSG:4326")
-         folium.GeoJson(
-         gdf,
-         marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-         tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,
+         layer_trasformatori_potenza = folium.FeatureGroup("Tras. potenza",overlay=True, show=False).add_to(my_map)
+         dataframe_trasformatori_potenza = gpd.read_feather('./conf/rete_elettrica/LAZIO_trasformatori_potenza.feather')
+         geodataframe_trasformatori_potenza = gpd.GeoDataFrame(dataframe_trasformatori_potenza)
+         folium.GeoJson(geodataframe_trasformatori_potenza,marker=folium.CircleMarker(radius=2, fill_color="red", 
+                                                                         fill_opacity=0.8, color="black", weight=2)).add_to(layer_trasformatori_potenza)
+         
+         GroupedLayerControl(groups={'rete elettrica': [layer_trasformatori_potenza]},collapsed=False,
                              exclusive_groups=False).add_to(my_map)
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -1830,7 +1820,10 @@ def elabora_evento_hw_trasformatore_p(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(life_tp65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_tp65) + "<br>" +
+                                          "trasf. potenza impattati: " + str(dataframe.at[i,'num_tp'])))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -1848,7 +1841,10 @@ def elabora_evento_hw_trasformatore_p(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(life_tp65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_tp65) + "<br>" +
+                                          "trasf. potenza impattati: " + str(dataframe.at[i,'num_tp'])))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -1866,7 +1862,10 @@ def elabora_evento_hw_trasformatore_p(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(life_tp65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_tp65) + "<br>" +
+                                          "trasf. potenza impattati: " + str(dataframe.at[i,'num_tp'])))
            geo_j.add_to(layer_giorno3)
     
     giorno4=(dataframe.at[g4,'giorno'])
@@ -1884,7 +1883,10 @@ def elabora_evento_hw_trasformatore_p(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(life_tp65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_tp65) + "<br>" +
+                                          "trasf. potenza impattati: " + str(dataframe.at[i,'num_tp'])))
            geo_j.add_to(layer_giorno4)
     
     giorno5=(dataframe.at[g5,'giorno'])
@@ -1902,7 +1904,10 @@ def elabora_evento_hw_trasformatore_p(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("% "+str(life_tp65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_tp65) + "<br>" +
+                                          "trasf. potenza impattati: " + str(dataframe.at[i,'num_tp'])))
            geo_j.add_to(layer_giorno5)
               
     giorno6=(dataframe.at[g6,'giorno'])
@@ -1920,7 +1925,10 @@ def elabora_evento_hw_trasformatore_p(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("% "+str(life_tp65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_tp65) + "<br>" +
+                                          "trasf. potenza impattati: " + str(dataframe.at[i,'num_tp'])))
            geo_j.add_to(layer_giorno6)
 
     giorno7=(dataframe.at[g7,'giorno'])
@@ -1938,7 +1946,10 @@ def elabora_evento_hw_trasformatore_p(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("% "+str(life_tp65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_tp65) + "<br>" +
+                                          "trasf. potenza impattati: " + str(dataframe.at[i,'num_tp'])))
            geo_j.add_to(layer_giorno7)    
     
     
@@ -1983,7 +1994,11 @@ def elabora_evento_hw_trasformatore_p(rete,dataframe):
 
 
 
-#elabora la mappa visualizzando la riduzione di vita prevista per i trasformatori di distribuzione nella regione (previsione 7gg)
+# TEMPERATURE ELEVATE TRASFORMATORI DI DISTRIBUZIONE
+# Elabora la mappa visualizzando poligoni di superficie 0.25 o 0.1 gradi.
+# Per ciascun poligono:
+# -Colorato con scala cromatica correlata alla riduzione vita dei componenti presenti (7gg)
+# -Tooltip con max temp raggiunte (°C), % riduz vita, numero di trasformatori impattati
 def elabora_evento_hw_trasformatore_d(rete,dataframe):
     num_rows=len(dataframe)
     if num_rows==385:#poligoni 025
@@ -2092,21 +2107,12 @@ def elabora_evento_hw_trasformatore_d(rete,dataframe):
                                             layer_provincia_latina,layer_provincia_frosinone]},collapsed=False,).add_to(my_map)
     
     if rete==1:
-         layer_rete_elettrica = folium.FeatureGroup("Rete elettrica",overlay=True, show=False).add_to(my_map)
-         dataframe_rete_elettrica = pd.read_feather('./conf/rete_elettrica/LAZIO_rete_elettrica.feather')
-         serie_elettrica=pd.DataFrame(dataframe_rete_elettrica)
-         coordinate_per_rete_elettrica=serie_elettrica['geometry']
-         linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
-         linee_elettriche.add_to(layer_rete_elettrica)
-
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.Lon, df.Lat), crs="EPSG:4326")
-         folium.GeoJson(
-         gdf,
-         marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-         tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,
+         layer_trasformatori_distribuzione = folium.FeatureGroup("Tras. distribuzione",overlay=True, show=False).add_to(my_map)
+         dataframe_trasformatori_distribuzione = gpd.read_feather('./conf/rete_elettrica/LAZIO_trasformatori_distribuzione.feather')
+         geodataframe_trasformatori_distribuzione = gpd.GeoDataFrame(dataframe_trasformatori_distribuzione)
+         folium.GeoJson(geodataframe_trasformatori_distribuzione, marker=folium.CircleMarker(radius=2, fill_color="red", 
+                                                                         fill_opacity=0.8, color="black", weight=2)).add_to(layer_trasformatori_distribuzione)
+         GroupedLayerControl(groups={'rete elettrica': [layer_trasformatori_distribuzione]},collapsed=False,
                              exclusive_groups=False).add_to(my_map)
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -2124,7 +2130,10 @@ def elabora_evento_hw_trasformatore_d(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(life_td65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_td65) + "<br>" +
+                                          "trasf. distribuzione impattati: " + str(dataframe.at[i,'num_td'])))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -2142,7 +2151,10 @@ def elabora_evento_hw_trasformatore_d(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(life_td65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_td65) + "<br>" +
+                                          "trasf. distribuzione impattati: " + str(dataframe.at[i,'num_td'])))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -2160,7 +2172,10 @@ def elabora_evento_hw_trasformatore_d(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(life_td65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_td65) + "<br>" +
+                                          "trasf. distribuzione impattati: " + str(dataframe.at[i,'num_td'])))
            geo_j.add_to(layer_giorno3)
     
     giorno4=(dataframe.at[g4,'giorno'])
@@ -2178,7 +2193,10 @@ def elabora_evento_hw_trasformatore_d(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(life_td65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_td65) + "<br>" +
+                                          "trasf. distribuzione impattati: " + str(dataframe.at[i,'num_td'])))
            geo_j.add_to(layer_giorno4)
     
     giorno5=(dataframe.at[g5,'giorno'])
@@ -2196,7 +2214,10 @@ def elabora_evento_hw_trasformatore_d(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("% "+str(life_td65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_td65) + "<br>" +
+                                          "trasf. distribuzione impattati: " + str(dataframe.at[i,'num_td'])))
            geo_j.add_to(layer_giorno5)
               
     giorno6=(dataframe.at[g6,'giorno'])
@@ -2214,7 +2235,10 @@ def elabora_evento_hw_trasformatore_d(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("% "+str(life_td65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_td65) + "<br>" +
+                                          "trasf. distribuzione impattati: " + str(dataframe.at[i,'num_td'])))
            geo_j.add_to(layer_giorno6)
 
     giorno7=(dataframe.at[g7,'giorno'])
@@ -2232,7 +2256,10 @@ def elabora_evento_hw_trasformatore_d(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("% "+str(life_td65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_td65) + "<br>" +
+                                          "trasf. distribuzione impattati: " + str(dataframe.at[i,'num_td'])))
            geo_j.add_to(layer_giorno7)    
     
     
@@ -2275,8 +2302,13 @@ def elabora_evento_hw_trasformatore_d(rete,dataframe):
 
 
 
-#elabora la mappa visualizzando la probabilità di failure dei tralicci nella regione (previsioni 7gg)
+# FORTE VENTO TRALICCI
+# Elabora la mappa visualizzando poligoni di superficie 0.25 o 0.1 gradi.
+# Per ciascun poligono:
+# -Colorato con scala cromatica correlata alla probabilità di guasto dei componenti presenti (7gg)
+# -Tooltip con max velocità vento (m/s), % prob guasto, numero tralicci presenti, stima num tralicci guasti
 def elabora_evento_vento_tralicci(rete,dataframe):
+        
     num_rows=len(dataframe)
     if num_rows==385:#poligoni 025
          step=55;g1=0;g2=g1+step;g3=g2+step;g4=g3+step;g5=g4+step;g6=g5+step;g7=g6+step;g8=g7+step
@@ -2384,22 +2416,12 @@ def elabora_evento_vento_tralicci(rete,dataframe):
                                             layer_provincia_latina,layer_provincia_frosinone]},collapsed=False,).add_to(my_map)
     
     if rete==1:
-         layer_rete_elettrica = folium.FeatureGroup("Rete elettrica",overlay=True, show=False).add_to(my_map)
-         dataframe_rete_elettrica = pd.read_feather('./conf/rete_elettrica/LAZIO_rete_elettrica.feather')
-         serie_elettrica=pd.DataFrame(dataframe_rete_elettrica)
-         coordinate_per_rete_elettrica=serie_elettrica['geometry']
-         linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
-         linee_elettriche.add_to(layer_rete_elettrica)
-
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.Lon, df.Lat), crs="EPSG:4326")
-         folium.GeoJson(
-         gdf,
-         marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-         tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,
-                             exclusive_groups=False).add_to(my_map)
+         layer_tralicci = folium.FeatureGroup("Tralicci",overlay=True, show=False).add_to(my_map)
+         dataframe_tralicci = gpd.read_feather('./conf/rete_elettrica/Lazio_tralicci.feather')
+         geodataframe_tralicci = gpd.GeoDataFrame(dataframe_tralicci)
+         folium.GeoJson(geodataframe_tralicci,marker=folium.CircleMarker(radius=2, fill_color="red", fill_opacity=0.8, color="black", weight=2)).add_to(layer_tralicci)         
+         
+         GroupedLayerControl(groups={'rete elettrica': [layer_tralicci]},collapsed=False,exclusive_groups=False).add_to(my_map)
     
     giorno1=(dataframe.at[g1,'giorno'])
     layer_giorno1 = folium.FeatureGroup(str(giorno1),overlay=False).add_to(my_map)
@@ -2416,7 +2438,11 @@ def elabora_evento_vento_tralicci(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_tralicci)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_tralicci) + "<br>" +
+                                          "Tralicci presenti: " + str(dataframe.at[i,'num_tralicci']) + "<br>" +
+                                          "Tralicci guasti (stima): " + str(elementi_prob_guasto(prob_tralicci, dataframe.at[i,'num_tralicci']))))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -2434,7 +2460,11 @@ def elabora_evento_vento_tralicci(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_tralicci)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_tralicci) + "<br>" +
+                                          "Tralicci presenti: " + str(dataframe.at[i,'num_tralicci']) + "<br>" +
+                                          "Tralicci guasti (stima): " + str(elementi_prob_guasto(prob_tralicci, dataframe.at[i,'num_tralicci']))))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -2452,8 +2482,11 @@ def elabora_evento_vento_tralicci(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_tralicci)))
-           geo_j.add_to(layer_giorno3)
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_tralicci) + "<br>" +
+                                          "Tralicci presenti: " + str(dataframe.at[i,'num_tralicci']) + "<br>" +
+                                          "Tralicci guasti (stima): " + str(elementi_prob_guasto(prob_tralicci, dataframe.at[i,'num_tralicci']))))
     
     giorno4=(dataframe.at[g4,'giorno'])
     layer_giorno4 = folium.FeatureGroup(str(giorno4),overlay=False).add_to(my_map)
@@ -2470,7 +2503,11 @@ def elabora_evento_vento_tralicci(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_tralicci)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_tralicci) + "<br>" +
+                                          "Tralicci presenti: " + str(dataframe.at[i,'num_tralicci']) + "<br>" +
+                                          "Tralicci guasti (stima): " + str(elementi_prob_guasto(prob_tralicci, dataframe.at[i,'num_tralicci']))))
            geo_j.add_to(layer_giorno4)
     
     giorno5=(dataframe.at[g5,'giorno'])
@@ -2488,7 +2525,11 @@ def elabora_evento_vento_tralicci(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_tralicci)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_tralicci) + "<br>" +
+                                          "Tralicci presenti: " + str(dataframe.at[i,'num_tralicci']) + "<br>" +
+                                          "Tralicci guasti (stima): " + str(elementi_prob_guasto(prob_tralicci, dataframe.at[i,'num_tralicci']))))
            geo_j.add_to(layer_giorno5)
               
     giorno6=(dataframe.at[g6,'giorno'])
@@ -2506,7 +2547,11 @@ def elabora_evento_vento_tralicci(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_tralicci)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_tralicci) + "<br>" +
+                                          "Tralicci presenti: " + str(dataframe.at[i,'num_tralicci']) + "<br>" +
+                                          "Tralicci guasti (stima): " + str(elementi_prob_guasto(prob_tralicci, dataframe.at[i,'num_tralicci']))))
            geo_j.add_to(layer_giorno6)
 
     giorno7=(dataframe.at[g7,'giorno'])
@@ -2524,7 +2569,11 @@ def elabora_evento_vento_tralicci(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_tralicci)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_tralicci) + "<br>" +
+                                          "Tralicci presenti: " + str(dataframe.at[i,'num_tralicci']) + "<br>" +
+                                          "Tralicci guasti (stima): " + str(elementi_prob_guasto(prob_tralicci, dataframe.at[i,'num_tralicci']))))
            geo_j.add_to(layer_giorno7)    
     
     
@@ -2568,7 +2617,12 @@ def elabora_evento_vento_tralicci(rete,dataframe):
 
 
 
-#elabora la mappa visualizzando la probabilità di failure della linea esterna nella regione (previsione 7gg)
+# FORTE VENTO LINEA SOSPESA (LINEA ESTERNA)
+# Elabora la mappa visualizzando poligoni di superficie 0.25 o 0.1 gradi.
+# Per ciascun poligono:
+# -Colorato con scala cromatica correlata alla probabilità di guasto della linea esterna presente (7gg)
+# -Tooltip con max velocità vento (m/s), % prob guasto, 
+# metri linea esterna presente, stima metri linea esterna guasta
 def elabora_evento_vento_linea_esterna(rete,dataframe):
     num_rows=len(dataframe)
     if num_rows==385:#poligoni 025
@@ -2677,21 +2731,16 @@ def elabora_evento_vento_linea_esterna(rete,dataframe):
                                             layer_provincia_latina,layer_provincia_frosinone]},collapsed=False,).add_to(my_map)
     
     if rete==1:
-         layer_rete_elettrica = folium.FeatureGroup("Rete elettrica",overlay=True, show=False).add_to(my_map)
-         dataframe_rete_elettrica = pd.read_feather('./conf/rete_elettrica/LAZIO_rete_elettrica.feather')
-         serie_elettrica=pd.DataFrame(dataframe_rete_elettrica)
-         coordinate_per_rete_elettrica=serie_elettrica['geometry']
-         linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
-         linee_elettriche.add_to(layer_rete_elettrica)
+         layer_power_line = folium.FeatureGroup("Linea AT/MT",overlay=True, show=False).add_to(my_map)
+         dataframe_power_line = gpd.read_feather('./conf/rete_elettrica/Lazio_power_line.feather')
+         folium.GeoJson(dataframe_power_line,
+                        style_function=lambda feature: {
+                        "color": "black",
+                        "weight": 1,
+                        "fillOpacity": 0.9},
+                        zoom_on_click=True).add_to(layer_power_line)
 
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.Lon, df.Lat), crs="EPSG:4326")
-         folium.GeoJson(
-         gdf,
-         marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-         tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,
+         GroupedLayerControl(groups={'rete elettrica': [layer_power_line]},collapsed=False,
                              exclusive_groups=False).add_to(my_map)
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -2709,7 +2758,11 @@ def elabora_evento_vento_linea_esterna(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_linea_esterna)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_linea_esterna) + "<br>" +
+                                          "Tot linea sospesa (m): " + str(dataframe.at[i,'m_power_line']) + "<br>" +
+                                          "Linea guasta (stima m): " + str(elementi_prob_guasto(prob_linea_esterna, dataframe.at[i,'m_power_line']))))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -2727,7 +2780,11 @@ def elabora_evento_vento_linea_esterna(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_linea_esterna)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_linea_esterna) + "<br>" +
+                                          "Tot linea sospesa (m): " + str(dataframe.at[i,'m_power_line']) + "<br>" +
+                                          "Linea guasta (stima m): " + str(elementi_prob_guasto(prob_linea_esterna, dataframe.at[i,'m_power_line']))))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -2745,7 +2802,11 @@ def elabora_evento_vento_linea_esterna(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_linea_esterna)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_linea_esterna) + "<br>" +
+                                          "Tot linea sospesa (m): " + str(dataframe.at[i,'m_power_line']) + "<br>" +
+                                          "Linea guasta (stima m): " + str(elementi_prob_guasto(prob_linea_esterna, dataframe.at[i,'m_power_line']))))
            geo_j.add_to(layer_giorno3)
     
     giorno4=(dataframe.at[g4,'giorno'])
@@ -2763,7 +2824,11 @@ def elabora_evento_vento_linea_esterna(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_linea_esterna)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_linea_esterna) + "<br>" +
+                                          "Tot linea sospesa (m): " + str(dataframe.at[i,'m_power_line']) + "<br>" +
+                                          "Linea guasta (stima m): " + str(elementi_prob_guasto(prob_linea_esterna, dataframe.at[i,'m_power_line']))))
            geo_j.add_to(layer_giorno4)
     
     giorno5=(dataframe.at[g5,'giorno'])
@@ -2781,7 +2846,11 @@ def elabora_evento_vento_linea_esterna(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_linea_esterna)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_linea_esterna) + "<br>" +
+                                          "Tot linea sospesa (m): " + str(dataframe.at[i,'m_power_line']) + "<br>" +
+                                          "Linea guasta (stima m): " + str(elementi_prob_guasto(prob_linea_esterna, dataframe.at[i,'m_power_line']))))
            geo_j.add_to(layer_giorno5)
               
     giorno6=(dataframe.at[g6,'giorno'])
@@ -2799,7 +2868,11 @@ def elabora_evento_vento_linea_esterna(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_linea_esterna)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_linea_esterna) + "<br>" +
+                                          "Tot linea sospesa (m): " + str(dataframe.at[i,'m_power_line']) + "<br>" +
+                                          "Linea guasta (stima m): " + str(elementi_prob_guasto(prob_linea_esterna, dataframe.at[i,'m_power_line']))))
            geo_j.add_to(layer_giorno6)
 
     giorno7=(dataframe.at[g7,'giorno'])
@@ -2817,7 +2890,11 @@ def elabora_evento_vento_linea_esterna(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_linea_esterna)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_linea_esterna) + "<br>" +
+                                          "Tot linea sospesa (m): " + str(dataframe.at[i,'m_power_line']) + "<br>" +
+                                          "Linea guasta (stima m): " + str(elementi_prob_guasto(prob_linea_esterna, dataframe.at[i,'m_power_line']))))
            geo_j.add_to(layer_giorno7)    
     
     
@@ -2859,11 +2936,12 @@ def elabora_evento_vento_linea_esterna(rete,dataframe):
 
 
 
-
-
-
-
-
+# GHIACCIO LINEA SOSPESA (LINEA ESTERNA)
+# Elabora la mappa visualizzando poligoni di superficie 0.25 o 0.1 gradi.
+# Per ciascun poligono:
+# -Colorato con scala cromatica correlata alla probabilità di guasto della linea esterna presente (7gg)
+# -Tooltip con stima ghiaccio accumulato (mm), % prob guasto, 
+# metri linea esterna presente, stima metri linea esterna guasta
 def elabora_evento_ghiaccio_linea_esterna(rete, dataframe):
     num_rows=len(dataframe)
     if num_rows==385:#poligoni 025
@@ -2972,21 +3050,16 @@ def elabora_evento_ghiaccio_linea_esterna(rete, dataframe):
                                             layer_provincia_latina,layer_provincia_frosinone]},collapsed=False,).add_to(my_map)
     
     if rete==1:
-         layer_rete_elettrica = folium.FeatureGroup("Rete elettrica",overlay=True, show=False).add_to(my_map)
-         dataframe_rete_elettrica = pd.read_feather('./conf/rete_elettrica/LAZIO_rete_elettrica.feather')
-         serie_elettrica=pd.DataFrame(dataframe_rete_elettrica)
-         coordinate_per_rete_elettrica=serie_elettrica['geometry']
-         linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
-         linee_elettriche.add_to(layer_rete_elettrica)
+         layer_power_line = folium.FeatureGroup("Linea elettrica AT/MT",overlay=True, show=False).add_to(my_map)
+         dataframe_power_line = gpd.read_feather('./conf/rete_elettrica/Lazio_power_line.feather')
+         folium.GeoJson(dataframe_power_line,
+                        style_function=lambda feature: {
+                        "color": "black",
+                        "weight": 1,
+                        "fillOpacity": 0.9},
+                        zoom_on_click=True).add_to(layer_power_line)
 
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.Lon, df.Lat), crs="EPSG:4326")
-         folium.GeoJson(
-         gdf,
-         marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-         tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,
+         GroupedLayerControl(groups={'rete elettrica': [layer_power_line]},collapsed=False,
                              exclusive_groups=False).add_to(my_map)
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -3004,7 +3077,11 @@ def elabora_evento_ghiaccio_linea_esterna(rete, dataframe):
                weight=0.1,
                line_opacity=0.1,
               )#.add_to(layer_giorno1)
-           geo_j.add_child(folium.Tooltip("% "+str(prob_linea_esterna_ice)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Ghiaccio sui cavi mm:" + str(dataframe.at[i,'m_mm']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_linea_esterna_ice) + "<br>" +
+                                          "Tot linea sospesa (m): " + str(dataframe.at[i,'m_power_line']) + "<br>" +
+                                          "Linea guasta (m): " + str(elementi_prob_guasto(prob_linea_esterna_ice, dataframe.at[i,'m_power_line']))))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -3022,7 +3099,11 @@ def elabora_evento_ghiaccio_linea_esterna(rete, dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_linea_esterna_ice)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Ghiaccio sui cavi mm:" + str(dataframe.at[i,'m_mm']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_linea_esterna_ice) + "<br>" +
+                                          "Tot linea sospesa (m): " + str(dataframe.at[i,'m_power_line']) + "<br>" +
+                                          "Linea guasta (m): " + str(elementi_prob_guasto(prob_linea_esterna_ice, dataframe.at[i,'m_power_line']))))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -3040,7 +3121,11 @@ def elabora_evento_ghiaccio_linea_esterna(rete, dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_linea_esterna_ice)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Ghiaccio sui cavi mm:" + str(dataframe.at[i,'m_mm']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_linea_esterna_ice) + "<br>" +
+                                          "Tot linea sospesa (m): " + str(dataframe.at[i,'m_power_line']) + "<br>" +
+                                          "Linea guasta (m): " + str(elementi_prob_guasto(prob_linea_esterna_ice, dataframe.at[i,'m_power_line']))))
            geo_j.add_to(layer_giorno3)
     
     giorno4=(dataframe.at[g4,'giorno'])
@@ -3058,7 +3143,11 @@ def elabora_evento_ghiaccio_linea_esterna(rete, dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_linea_esterna_ice)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" +
+                                          "Ghiaccio sui cavi mm:" + str(dataframe.at[i,'m_mm']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_linea_esterna_ice) + "<br>" +
+                                          "Tot linea sospesa (m): " + str(dataframe.at[i,'m_power_line']) + "<br>" +
+                                          "Linea guasta (m): " + str(elementi_prob_guasto(prob_linea_esterna_ice, dataframe.at[i,'m_power_line']))))
            geo_j.add_to(layer_giorno4)
     
     giorno5=(dataframe.at[g5,'giorno'])
@@ -3076,7 +3165,11 @@ def elabora_evento_ghiaccio_linea_esterna(rete, dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_linea_esterna_ice)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Ghiaccio sui cavi mm:" + str(dataframe.at[i,'m_mm']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_linea_esterna_ice) + "<br>" +
+                                          "Tot linea sospesa (m): " + str(dataframe.at[i,'m_power_line']) + "<br>" +
+                                          "Linea guasta (m): " + str(elementi_prob_guasto(prob_linea_esterna_ice, dataframe.at[i,'m_power_line']))))
            geo_j.add_to(layer_giorno5)
               
     giorno6=(dataframe.at[g6,'giorno'])
@@ -3094,7 +3187,11 @@ def elabora_evento_ghiaccio_linea_esterna(rete, dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_linea_esterna_ice)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Ghiaccio sui cavi mm:" + str(dataframe.at[i,'m_mm']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_linea_esterna_ice) + "<br>" +
+                                          "Tot linea sospesa (m): " + str(dataframe.at[i,'m_power_line']) + "<br>" +
+                                          "Linea guasta (m): " + str(elementi_prob_guasto(prob_linea_esterna_ice, dataframe.at[i,'m_power_line']))))
            geo_j.add_to(layer_giorno6)
 
     giorno7=(dataframe.at[g7,'giorno'])
@@ -3112,7 +3209,11 @@ def elabora_evento_ghiaccio_linea_esterna(rete, dataframe):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_linea_esterna_ice)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Ghiaccio sui cavi mm:" + str(dataframe.at[i,'m_mm']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_linea_esterna_ice) + "<br>" +
+                                          "Tot linea sospesa (m): " + str(dataframe.at[i,'m_power_line']) + "<br>" +
+                                          "Linea guasta (m): " + str(elementi_prob_guasto(prob_linea_esterna_ice, dataframe.at[i,'m_power_line']))))
            geo_j.add_to(layer_giorno7)    
     
     
@@ -3156,7 +3257,13 @@ def elabora_evento_ghiaccio_linea_esterna(rete, dataframe):
 
 
 
-#elabora la mappa visualizzando la probabilità di failure dei pali di servizio nella regione (previsione 7gg)
+
+# VENTO PALI DI SERVIZIO
+# Elabora la mappa visualizzando poligoni di superficie 0.25 o 0.1 gradi.
+# Per ciascun poligono:
+# -Colorato con scala cromatica correlata alla probabilità di guasto dei pali di servizio presente (7gg)
+# -Tooltip con max velocità del vento (m/s), % prob guasto, 
+# numero pali presenti, stima numero pali guasti
 def elabora_evento_vento_pali(rete, dataframe, tipo_palo, pali_anni):
     num_rows=len(dataframe)
     if num_rows==385:#poligoni 025
@@ -3265,23 +3372,13 @@ def elabora_evento_vento_pali(rete, dataframe, tipo_palo, pali_anni):
                                             layer_provincia_latina,layer_provincia_frosinone]},collapsed=False,).add_to(my_map)
     
     if rete==1:
-         layer_rete_elettrica = folium.FeatureGroup("Rete elettrica",overlay=True, show=False).add_to(my_map)
-         dataframe_rete_elettrica = pd.read_feather('./conf/rete_elettrica/LAZIO_rete_elettrica.feather')
-         serie_elettrica=pd.DataFrame(dataframe_rete_elettrica)
-         coordinate_per_rete_elettrica=serie_elettrica['geometry']
-         linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
-         linee_elettriche.add_to(layer_rete_elettrica)
-
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.Lon, df.Lat), crs="EPSG:4326")
-         folium.GeoJson(
-         gdf,
-         marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-         tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,
-                             exclusive_groups=False).add_to(my_map)
-    
+         layer_pali = folium.FeatureGroup("Pali",overlay=True, show=False).add_to(my_map)
+         dataframe_pali = gpd.read_feather('./conf/rete_elettrica/Lazio_pali.feather')
+         geodataframe_pali = gpd.GeoDataFrame(dataframe_pali)
+         folium.GeoJson(geodataframe_pali,marker=folium.CircleMarker(radius=2, fill_color="red", fill_opacity=0.8, color="black", weight=2)).add_to(layer_pali)         
+         
+         GroupedLayerControl(groups={'rete elettrica': [layer_pali]},collapsed=False,exclusive_groups=False).add_to(my_map)
+                  
     giorno1=(dataframe.at[g1,'giorno'])
     layer_giorno1 = folium.FeatureGroup(str(giorno1),overlay=False).add_to(my_map)
     for i in range (g1,g2):
@@ -3300,7 +3397,11 @@ def elabora_evento_vento_pali(rete, dataframe, tipo_palo, pali_anni):
                weight=0.1,
                line_opacity=0.1,
               )#.add_to(layer_giorno1)
-           geo_j.add_child(folium.Tooltip("% "+str(prob_pali)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_pali) + "<br>" +
+                                          "Pali presenti: " + str(dataframe.at[i,'num_pali']) + "<br>" +
+                                          "Pali guasti (stima): " + str(elementi_prob_guasto(prob_pali, dataframe.at[i,'num_pali']))))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -3321,7 +3422,11 @@ def elabora_evento_vento_pali(rete, dataframe, tipo_palo, pali_anni):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_pali)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_pali) + "<br>" +
+                                          "Pali presenti: " + str(dataframe.at[i,'num_pali']) + "<br>" +
+                                          "Pali guasti (stima): " + str(elementi_prob_guasto(prob_pali, dataframe.at[i,'num_pali']))))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -3342,7 +3447,11 @@ def elabora_evento_vento_pali(rete, dataframe, tipo_palo, pali_anni):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_pali)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_pali) + "<br>" +
+                                          "Pali presenti: " + str(dataframe.at[i,'num_pali']) + "<br>" +
+                                          "Pali guasti (stima): " + str(elementi_prob_guasto(prob_pali, dataframe.at[i,'num_pali']))))
            geo_j.add_to(layer_giorno3)
     
     giorno4=(dataframe.at[g4,'giorno'])
@@ -3363,7 +3472,11 @@ def elabora_evento_vento_pali(rete, dataframe, tipo_palo, pali_anni):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_pali)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_pali) + "<br>" +
+                                          "Pali presenti: " + str(dataframe.at[i,'num_pali']) + "<br>" +
+                                          "Pali guasti (stima): " + str(elementi_prob_guasto(prob_pali, dataframe.at[i,'num_pali']))))
            geo_j.add_to(layer_giorno4)
     
     giorno5=(dataframe.at[g5,'giorno'])
@@ -3384,7 +3497,11 @@ def elabora_evento_vento_pali(rete, dataframe, tipo_palo, pali_anni):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_pali)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_pali) + "<br>" +
+                                          "Pali presenti: " + str(dataframe.at[i,'num_pali']) + "<br>" +
+                                          "Pali guasti (stima): " + str(elementi_prob_guasto(prob_pali, dataframe.at[i,'num_pali']))))
            geo_j.add_to(layer_giorno5)
               
     giorno6=(dataframe.at[g6,'giorno'])
@@ -3405,7 +3522,11 @@ def elabora_evento_vento_pali(rete, dataframe, tipo_palo, pali_anni):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_pali)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_pali) + "<br>" +
+                                          "Pali presenti: " + str(dataframe.at[i,'num_pali']) + "<br>" +
+                                          "Pali guasti (stima): " + str(elementi_prob_guasto(prob_pali, dataframe.at[i,'num_pali']))))
            geo_j.add_to(layer_giorno6)
 
     giorno7=(dataframe.at[g7,'giorno'])
@@ -3426,7 +3547,11 @@ def elabora_evento_vento_pali(rete, dataframe, tipo_palo, pali_anni):
                weight=0.1,
                line_opacity=0.1,
                )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_pali)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_pali) + "<br>" +
+                                          "Pali presenti: " + str(dataframe.at[i,'num_pali']) + "<br>" +
+                                          "Pali guasti (stima): " + str(elementi_prob_guasto(prob_pali, dataframe.at[i,'num_pali']))))
            geo_j.add_to(layer_giorno7)    
     
     
