@@ -1,4 +1,6 @@
+# Questo modulo gestisce la creazione degli scenari con risoluzione 0.02 gradi su scala provinciale
 
+# Importa moduli Python
 import folium
 from folium.plugins import GroupedLayerControl, MousePosition,MeasureControl,HeatMap
 import geopandas as gpd
@@ -10,11 +12,25 @@ from PIL import Image
 import math
 
 
+# Per le ondate di calore non è disponibile una statistica dei guasti. I guasti attesi vengono
+# stimati moltiplicando il generico "guasti medi" per il valore restituito dalla funzione sotto,
+# che riceve come argomento l'indice dell'ondata di calore, in questo caso adattato a 3 gg
+def guasti_hw_3g(indice):
+       if (indice<=4): return 1 # guasti medi del periodo
+       if (indice==5): return 2 # il doppio dei guasti medi del periodo
+       if (indice==6): return 3 # ....il triplo
+
+# Restituisce la stima degli elementi elettrici che subiranno guasti (vulnerabilità)
+def elementi_prob_guasto_002(percentuale, tot_elementi):
+       if (percentuale==0): return 0
+       else:
+           return round((tot_elementi/100)*percentuale)
+       
 
 
 #--------------------------------------INIZIO DATI METEO----------------------------------------------------
 
-#elabora la mappa visualizzando i valori previsionali della temperatura nella provincia scelta (previsione 3gg)
+# Elabora la mappa visualizzando i valori previsionali della temperatura nella provincia scelta (previsione 3gg)
 def elabora_solo_meteo_temperatura_provincia(rete, dataframe):
     df = gpd.read_feather('./conf/confini/confini_comuni_lazio.feather')
     dfp = gpd.read_feather('./conf/confini/confini_province_lazio.feather')
@@ -23,7 +39,6 @@ def elabora_solo_meteo_temperatura_provincia(rete, dataframe):
     if num_rows==2889:#provincia Frosinone
          step=963;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
          percorso='./conf/rete_elettrica/FROSINONE_rete_elettrica.feather'  
-         provincia='FROSINONE' 
          my_map = folium.Map(location=[41.62, 13.50],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap= LinearColormap(colors=["violet", "darkblue", "blue", "cyan","green", "yellow", "orange", "red"],
@@ -53,7 +68,6 @@ def elabora_solo_meteo_temperatura_provincia(rete, dataframe):
     if num_rows==4818:#provincia Roma
          step=1606;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
          percorso='./conf/rete_elettrica/ROMA_rete_elettrica.feather' 
-         provincia='ROMA'
          my_map = folium.Map(location=[41.92, 12.44],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap= LinearColormap(colors=["violet", "darkblue", "blue", "cyan","green", "yellow", "orange", "red"],
@@ -84,7 +98,6 @@ def elabora_solo_meteo_temperatura_provincia(rete, dataframe):
     if num_rows==2205:#provincia Latina
          step=735;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
          percorso='./conf/rete_elettrica/LATINA_rete_elettrica.feather'   
-         provincia='LATINA' 
          my_map = folium.Map(location=[41.40, 13.10],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap= LinearColormap(colors=["violet", "darkblue", "blue", "cyan","green", "yellow", "orange", "red"],
@@ -116,7 +129,6 @@ def elabora_solo_meteo_temperatura_provincia(rete, dataframe):
     if num_rows==2529:#provincia Rieti
          step=843;g1=0;g2=g1+step;g3=g2+step;g4=g3+step   
          percorso='./conf/rete_elettrica/RIETI_rete_elettrica.feather' 
-         provincia='RIETI'
          my_map = folium.Map(location=[42.35, 12.91],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap= LinearColormap(colors=["violet", "darkblue", "blue", "cyan","green", "yellow", "orange", "red"],
@@ -147,7 +159,6 @@ def elabora_solo_meteo_temperatura_provincia(rete, dataframe):
     if num_rows==3273:#provincia Viterbo
          step=1091;g1=0;g2=g1+step;g3=g2+step;g4=g3+step  
          percorso='./conf/rete_elettrica/VITERBO_rete_elettrica.feather'  
-         provincia='VITERBO'
          my_map = folium.Map(location=[42.42, 11.98],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap= LinearColormap(colors=["violet", "darkblue", "blue", "cyan","green", "yellow", "orange", "red"],
@@ -183,15 +194,7 @@ def elabora_solo_meteo_temperatura_provincia(rete, dataframe):
          linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
          linee_elettriche.add_to(layer_rete_elettrica)
          
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         df_filtrato = df[df['Provincia'] == provincia]
-         if not df_filtrato.empty:
-              gdf = gpd.GeoDataFrame(df_filtrato, geometry=gpd.points_from_xy(df_filtrato.Lon, df_filtrato.Lat), crs="EPSG:4326")
-              folium.GeoJson(gdf,
-              marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-              tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,exclusive_groups=False).add_to(my_map)
+         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica]},collapsed=False,exclusive_groups=False).add_to(my_map)
                       
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -209,7 +212,7 @@ def elabora_solo_meteo_temperatura_provincia(rete, dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("temp °C "+str(temperatura)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "temp °C "+str(temperatura)))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -227,7 +230,7 @@ def elabora_solo_meteo_temperatura_provincia(rete, dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("temp °C "+str(temperatura)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "temp °C "+str(temperatura)))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -245,7 +248,7 @@ def elabora_solo_meteo_temperatura_provincia(rete, dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("temp °C "+str(temperatura)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "temp °C "+str(temperatura)))
            geo_j.add_to(layer_giorno3)    
            
     GroupedLayerControl(groups={'giorno': [layer_giorno1, layer_giorno2, layer_giorno3]},collapsed=False,).add_to(my_map)      
@@ -278,10 +281,7 @@ def elabora_solo_meteo_temperatura_provincia(rete, dataframe):
 
 
 
-
-
-
-#elabora la mappa visualizzando i valori previsionali del vento nella provincia scelta (previsione 3gg)
+# Elabora la mappa visualizzando i valori previsionali del vento nella provincia scelta (previsione 3gg)
 def elabora_solo_meteo_vento_provincia(rete, dataframe):
     df = gpd.read_feather('./conf/confini/confini_comuni_lazio.feather')
     dfp = gpd.read_feather('./conf/confini/confini_province_lazio.feather')
@@ -290,7 +290,6 @@ def elabora_solo_meteo_vento_provincia(rete, dataframe):
     if num_rows==2889:#provincia Frosinone
          step=963;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
          percorso='./conf/rete_elettrica/FROSINONE_rete_elettrica.feather'  
-         provincia='FROSINONE' 
          my_map = folium.Map(location=[41.62, 13.50],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          step= StepColormap(["darkgreen", "forestgreen","lightgreen","greenyellow","lemonchiffon","khaki","yellow","orange","darkorange","orangered","red","firebrick","mediumvioletred"], 
@@ -318,7 +317,6 @@ def elabora_solo_meteo_vento_provincia(rete, dataframe):
     if num_rows==4818:#provincia Roma
          step=1606;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
          percorso='./conf/rete_elettrica/ROMA_rete_elettrica.feather' 
-         provincia='ROMA'
          my_map = folium.Map(location=[41.92, 12.44],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          step= StepColormap(["darkgreen", "forestgreen","lightgreen","greenyellow","lemonchiffon","khaki","yellow","orange","darkorange","orangered","red","firebrick","mediumvioletred"], 
@@ -347,7 +345,6 @@ def elabora_solo_meteo_vento_provincia(rete, dataframe):
     if num_rows==2205:#provincia Latina
          step=735;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
          percorso='./conf/rete_elettrica/LATINA_rete_elettrica.feather'   
-         provincia='LATINA' 
          my_map = folium.Map(location=[41.40, 13.10],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          step= StepColormap(["darkgreen", "forestgreen","lightgreen","greenyellow","lemonchiffon","khaki","yellow","orange","darkorange","orangered","red","firebrick","mediumvioletred"], 
@@ -377,7 +374,6 @@ def elabora_solo_meteo_vento_provincia(rete, dataframe):
     if num_rows==2529:#provincia Rieti
          step=843;g1=0;g2=g1+step;g3=g2+step;g4=g3+step   
          percorso='./conf/rete_elettrica/RIETI_rete_elettrica.feather' 
-         provincia='RIETI'
          my_map = folium.Map(location=[42.35, 12.91],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          step= StepColormap(["darkgreen", "forestgreen","lightgreen","greenyellow","lemonchiffon","khaki","yellow","orange","darkorange","orangered","red","firebrick","mediumvioletred"], 
@@ -406,7 +402,6 @@ def elabora_solo_meteo_vento_provincia(rete, dataframe):
     if num_rows==3273:#provincia Viterbo
          step=1091;g1=0;g2=g1+step;g3=g2+step;g4=g3+step  
          percorso='./conf/rete_elettrica/VITERBO_rete_elettrica.feather'  
-         provincia='VITERBO'
          my_map = folium.Map(location=[42.42, 11.98],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          step= StepColormap(["darkgreen", "forestgreen","lightgreen","greenyellow","lemonchiffon","khaki","yellow","orange","darkorange","orangered","red","firebrick","mediumvioletred"], 
@@ -440,15 +435,7 @@ def elabora_solo_meteo_vento_provincia(rete, dataframe):
          linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
          linee_elettriche.add_to(layer_rete_elettrica)
          
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         df_filtrato = df[df['Provincia'] == provincia]
-         if not df_filtrato.empty:
-              gdf = gpd.GeoDataFrame(df_filtrato, geometry=gpd.points_from_xy(df_filtrato.Lon, df_filtrato.Lat), crs="EPSG:4326")
-              folium.GeoJson(gdf,
-              marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-              tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,exclusive_groups=False).add_to(my_map)
+         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica]},collapsed=False,exclusive_groups=False).add_to(my_map)
                       
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -466,7 +453,7 @@ def elabora_solo_meteo_vento_provincia(rete, dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("m/s "+str(vento)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "m/s "+str(vento)))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -484,7 +471,7 @@ def elabora_solo_meteo_vento_provincia(rete, dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("m/s "+str(vento)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "m/s "+str(vento)))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -502,7 +489,7 @@ def elabora_solo_meteo_vento_provincia(rete, dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("m/s "+str(vento)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "m/s "+str(vento)))
            geo_j.add_to(layer_giorno3)    
            
     GroupedLayerControl(groups={'giorno': [layer_giorno1, layer_giorno2, layer_giorno3]},collapsed=False,).add_to(my_map)      
@@ -552,7 +539,7 @@ def elabora_solo_meteo_vento_provincia(rete, dataframe):
 
 
 
-#elabora la mappa visualizzando i valori previsionali della pioggia caduta nella provincia scelta (previsione 3gg)
+# Elabora la mappa visualizzando i valori previsionali della pioggia caduta nella provincia scelta (previsione 3gg)
 def elabora_solo_meteo_pioggia_provincia(rete,dataframe):
     df = gpd.read_feather('./conf/confini/confini_comuni_lazio.feather')
     dfp = gpd.read_feather('./conf/confini/confini_province_lazio.feather')
@@ -561,7 +548,6 @@ def elabora_solo_meteo_pioggia_provincia(rete,dataframe):
     if num_rows==2889:#provincia Frosinone
          step=963;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
          percorso='./conf/rete_elettrica/FROSINONE_rete_elettrica.feather'  
-         provincia='FROSINONE' 
          my_map = folium.Map(location=[41.62, 13.50],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap = linear.Greys_09.scale(0,60)
@@ -588,7 +574,6 @@ def elabora_solo_meteo_pioggia_provincia(rete,dataframe):
     if num_rows==4818:#provincia Roma
          step=1606;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
          percorso='./conf/rete_elettrica/ROMA_rete_elettrica.feather' 
-         provincia='ROMA'
          my_map = folium.Map(location=[41.92, 12.44],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap = linear.Greys_09.scale(0,60)
@@ -616,7 +601,6 @@ def elabora_solo_meteo_pioggia_provincia(rete,dataframe):
     if num_rows==2205:#provincia Latina
          step=735;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
          percorso='./conf/rete_elettrica/LATINA_rete_elettrica.feather'   
-         provincia='LATINA' 
          my_map = folium.Map(location=[41.40, 13.10],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap = linear.Greys_09.scale(0,60)
@@ -645,7 +629,6 @@ def elabora_solo_meteo_pioggia_provincia(rete,dataframe):
     if num_rows==2529:#provincia Rieti
          step=843;g1=0;g2=g1+step;g3=g2+step;g4=g3+step   
          percorso='./conf/rete_elettrica/RIETI_rete_elettrica.feather' 
-         provincia='RIETI'
          my_map = folium.Map(location=[42.35, 12.91],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap = linear.Greys_09.scale(0,60)
@@ -673,7 +656,6 @@ def elabora_solo_meteo_pioggia_provincia(rete,dataframe):
     if num_rows==3273:#provincia Viterbo
          step=1091;g1=0;g2=g1+step;g3=g2+step;g4=g3+step  
          percorso='./conf/rete_elettrica/VITERBO_rete_elettrica.feather'  
-         provincia='VITERBO'
          my_map = folium.Map(location=[42.42, 11.98],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap = linear.Greys_09.scale(0,60)
@@ -706,15 +688,7 @@ def elabora_solo_meteo_pioggia_provincia(rete,dataframe):
          linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
          linee_elettriche.add_to(layer_rete_elettrica)
          
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         df_filtrato = df[df['Provincia'] == provincia]
-         if not df_filtrato.empty:
-              gdf = gpd.GeoDataFrame(df_filtrato, geometry=gpd.points_from_xy(df_filtrato.Lon, df_filtrato.Lat), crs="EPSG:4326")
-              folium.GeoJson(gdf,
-              marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-              tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,exclusive_groups=False).add_to(my_map)
+         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica]},collapsed=False,exclusive_groups=False).add_to(my_map)
                       
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -732,7 +706,7 @@ def elabora_solo_meteo_pioggia_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(pioggia_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(pioggia_sum)))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -750,7 +724,7 @@ def elabora_solo_meteo_pioggia_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(pioggia_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(pioggia_sum)))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -768,7 +742,7 @@ def elabora_solo_meteo_pioggia_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(pioggia_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(pioggia_sum)))
            geo_j.add_to(layer_giorno3)    
            
     GroupedLayerControl(groups={'giorno': [layer_giorno1, layer_giorno2, layer_giorno3]},collapsed=False,).add_to(my_map)      
@@ -803,7 +777,7 @@ def elabora_solo_meteo_pioggia_provincia(rete,dataframe):
 
 
 
-#elabora la mappa visualizzando i valori previsionali della neve caduta nella provincia scelta (previsioni 3gg)
+# Elabora la mappa visualizzando i valori previsionali della neve caduta nella provincia scelta (previsioni 3gg)
 def elabora_solo_meteo_neve_provincia(rete,dataframe):
     df = gpd.read_feather('./conf/confini/confini_comuni_lazio.feather')
     dfp = gpd.read_feather('./conf/confini/confini_province_lazio.feather')
@@ -812,7 +786,6 @@ def elabora_solo_meteo_neve_provincia(rete,dataframe):
     if num_rows==2889:#provincia Frosinone
          step=963;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
          percorso='./conf/rete_elettrica/FROSINONE_rete_elettrica.feather'  
-         provincia='FROSINONE' 
          my_map = folium.Map(location=[41.62, 13.50],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap = linear.Greys_09.scale(0,100)
@@ -839,7 +812,6 @@ def elabora_solo_meteo_neve_provincia(rete,dataframe):
     if num_rows==4818:#provincia Roma
          step=1606;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
          percorso='./conf/rete_elettrica/ROMA_rete_elettrica.feather' 
-         provincia='ROMA'
          my_map = folium.Map(location=[41.92, 12.44],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap = linear.Greys_09.scale(0,100)
@@ -867,7 +839,6 @@ def elabora_solo_meteo_neve_provincia(rete,dataframe):
     if num_rows==2205:#provincia Latina
          step=735;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
          percorso='./conf/rete_elettrica/LATINA_rete_elettrica.feather'   
-         provincia='LATINA' 
          my_map = folium.Map(location=[41.40, 13.10],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap = linear.Greys_09.scale(0,100)
@@ -896,7 +867,6 @@ def elabora_solo_meteo_neve_provincia(rete,dataframe):
     if num_rows==2529:#provincia Rieti
          step=843;g1=0;g2=g1+step;g3=g2+step;g4=g3+step   
          percorso='./conf/rete_elettrica/RIETI_rete_elettrica.feather' 
-         provincia='RIETI'
          my_map = folium.Map(location=[42.35, 12.91],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap = linear.Greys_09.scale(0,100)
@@ -924,7 +894,6 @@ def elabora_solo_meteo_neve_provincia(rete,dataframe):
     if num_rows==3273:#provincia Viterbo
          step=1091;g1=0;g2=g1+step;g3=g2+step;g4=g3+step  
          percorso='./conf/rete_elettrica/VITERBO_rete_elettrica.feather'  
-         provincia='VITERBO'
          my_map = folium.Map(location=[42.42, 11.98],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap = linear.Greys_09.scale(0,100)
@@ -956,16 +925,7 @@ def elabora_solo_meteo_neve_provincia(rete,dataframe):
          coordinate_per_rete_elettrica=serie_elettrica['geometry']
          linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
          linee_elettriche.add_to(layer_rete_elettrica)
-         
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         df_filtrato = df[df['Provincia'] == provincia]
-         if not df_filtrato.empty:
-              gdf = gpd.GeoDataFrame(df_filtrato, geometry=gpd.points_from_xy(df_filtrato.Lon, df_filtrato.Lat), crs="EPSG:4326")
-              folium.GeoJson(gdf,
-              marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-              tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,exclusive_groups=False).add_to(my_map)
+         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica]},collapsed=False,exclusive_groups=False).add_to(my_map)
                       
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -983,7 +943,7 @@ def elabora_solo_meteo_neve_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(neve_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(neve_sum)))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -1001,7 +961,7 @@ def elabora_solo_meteo_neve_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(neve_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(neve_sum)))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -1019,7 +979,7 @@ def elabora_solo_meteo_neve_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(neve_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(neve_sum)))
            geo_j.add_to(layer_giorno3)    
            
     GroupedLayerControl(groups={'giorno': [layer_giorno1, layer_giorno2, layer_giorno3]},collapsed=False,).add_to(my_map)      
@@ -1053,7 +1013,7 @@ def elabora_solo_meteo_neve_provincia(rete,dataframe):
 
 
 
-#elabora la mappa visualizzando i valori delle precipitazioni cadute nella provincia scelta (tot pioggia, neve, grandine....previsione 3gg)
+# Elabora la mappa visualizzando i valori delle precipitazioni cadute nella provincia scelta (tot pioggia, neve, grandine....previsione 3gg)
 def elabora_solo_meteo_precipitazioni_provincia(rete, dataframe):
     df = gpd.read_feather('./conf/confini/confini_comuni_lazio.feather')
     dfp = gpd.read_feather('./conf/confini/confini_province_lazio.feather')
@@ -1062,7 +1022,6 @@ def elabora_solo_meteo_precipitazioni_provincia(rete, dataframe):
     if num_rows==2889:#provincia Frosinone
          step=963;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
          percorso='./conf/rete_elettrica/FROSINONE_rete_elettrica.feather'  
-         provincia='FROSINONE' 
          my_map = folium.Map(location=[41.62, 13.50],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap = linear.Blues_09.scale(0,50)
@@ -1089,7 +1048,6 @@ def elabora_solo_meteo_precipitazioni_provincia(rete, dataframe):
     if num_rows==4818:#provincia Roma
          step=1606;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
          percorso='./conf/rete_elettrica/ROMA_rete_elettrica.feather' 
-         provincia='ROMA'
          my_map = folium.Map(location=[41.92, 12.44],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap = linear.Blues_09.scale(0,50)
@@ -1117,7 +1075,6 @@ def elabora_solo_meteo_precipitazioni_provincia(rete, dataframe):
     if num_rows==2205:#provincia Latina
          step=735;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
          percorso='./conf/rete_elettrica/LATINA_rete_elettrica.feather'   
-         provincia='LATINA' 
          my_map = folium.Map(location=[41.40, 13.10],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap = linear.Blues_09.scale(0,50)
@@ -1146,7 +1103,6 @@ def elabora_solo_meteo_precipitazioni_provincia(rete, dataframe):
     if num_rows==2529:#provincia Rieti
          step=843;g1=0;g2=g1+step;g3=g2+step;g4=g3+step   
          percorso='./conf/rete_elettrica/RIETI_rete_elettrica.feather' 
-         provincia='RIETI'
          my_map = folium.Map(location=[42.35, 12.91],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap = linear.Blues_09.scale(0,50)
@@ -1174,7 +1130,6 @@ def elabora_solo_meteo_precipitazioni_provincia(rete, dataframe):
     if num_rows==3273:#provincia Viterbo
          step=1091;g1=0;g2=g1+step;g3=g2+step;g4=g3+step  
          percorso='./conf/rete_elettrica/VITERBO_rete_elettrica.feather'  
-         provincia='VITERBO'
          my_map = folium.Map(location=[42.42, 11.98],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          colormap = linear.Blues_09.scale(0,50)
@@ -1206,16 +1161,8 @@ def elabora_solo_meteo_precipitazioni_provincia(rete, dataframe):
          coordinate_per_rete_elettrica=serie_elettrica['geometry']
          linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
          linee_elettriche.add_to(layer_rete_elettrica)
-         
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         df_filtrato = df[df['Provincia'] == provincia]
-         if not df_filtrato.empty:
-              gdf = gpd.GeoDataFrame(df_filtrato, geometry=gpd.points_from_xy(df_filtrato.Lon, df_filtrato.Lat), crs="EPSG:4326")
-              folium.GeoJson(gdf,
-              marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-              tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,exclusive_groups=False).add_to(my_map)
+                  
+         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica]},collapsed=False,exclusive_groups=False).add_to(my_map)
                       
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -1233,7 +1180,7 @@ def elabora_solo_meteo_precipitazioni_provincia(rete, dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(precipitation_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(precipitation_sum)))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -1251,7 +1198,7 @@ def elabora_solo_meteo_precipitazioni_provincia(rete, dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(precipitation_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(precipitation_sum)))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -1269,7 +1216,7 @@ def elabora_solo_meteo_precipitazioni_provincia(rete, dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mm "+str(precipitation_sum)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mm "+str(precipitation_sum)))
            geo_j.add_to(layer_giorno3)    
            
     GroupedLayerControl(groups={'giorno': [layer_giorno1, layer_giorno2, layer_giorno3]},collapsed=False,).add_to(my_map)      
@@ -1303,12 +1250,7 @@ def elabora_solo_meteo_precipitazioni_provincia(rete, dataframe):
 
 
 
-
-
-
-
-
-#elabora la mappa visualizzando i valori previsti della portata dei corsi d'acqua presenti nella provincia scelta (previsioni 3gg)
+# Elabora la mappa visualizzando i valori previsti della portata dei corsi d'acqua presenti nella provincia scelta (previsioni 3gg)
 def elabora_solo_meteo_discharge_provincia(rete,dataframe):
     df = gpd.read_feather('./conf/confini/confini_comuni_lazio.feather')
     dfp = gpd.read_feather('./conf/confini/confini_province_lazio.feather')
@@ -1325,7 +1267,6 @@ def elabora_solo_meteo_discharge_provincia(rete,dataframe):
     if num_rows==2889:#provincia Frosinone
          step=963;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
          percorso='./conf/rete_elettrica/FROSINONE_rete_elettrica.feather'  
-         provincia='FROSINONE' 
          my_map = folium.Map(location=[41.62, 13.50],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          step_dis= StepColormap(["whitesmoke","paleturquoise","skyblue","cornflowerblue","royalblue","darkblue"], 
@@ -1353,7 +1294,6 @@ def elabora_solo_meteo_discharge_provincia(rete,dataframe):
     if num_rows==4818:#provincia Roma
          step=1606;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
          percorso='./conf/rete_elettrica/ROMA_rete_elettrica.feather' 
-         provincia='ROMA'
          my_map = folium.Map(location=[41.92, 12.44],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          step_dis= StepColormap(["whitesmoke","paleturquoise","skyblue","cornflowerblue","royalblue","darkblue"], 
@@ -1382,7 +1322,6 @@ def elabora_solo_meteo_discharge_provincia(rete,dataframe):
     if num_rows==2205:#provincia Latina
          step=735;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
          percorso='./conf/rete_elettrica/LATINA_rete_elettrica.feather'   
-         provincia='LATINA' 
          my_map = folium.Map(location=[41.40, 13.10],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          step_dis= StepColormap(["whitesmoke","paleturquoise","skyblue","cornflowerblue","royalblue","darkblue"], 
@@ -1412,7 +1351,6 @@ def elabora_solo_meteo_discharge_provincia(rete,dataframe):
     if num_rows==2529:#provincia Rieti
          step=843;g1=0;g2=g1+step;g3=g2+step;g4=g3+step   
          percorso='./conf/rete_elettrica/RIETI_rete_elettrica.feather' 
-         provincia='RIETI'
          my_map = folium.Map(location=[42.35, 12.91],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          step_dis= StepColormap(["whitesmoke","paleturquoise","skyblue","cornflowerblue","royalblue","darkblue"], 
@@ -1441,7 +1379,6 @@ def elabora_solo_meteo_discharge_provincia(rete,dataframe):
     if num_rows==3273:#provincia Viterbo
          step=1091;g1=0;g2=g1+step;g3=g2+step;g4=g3+step  
          percorso='./conf/rete_elettrica/VITERBO_rete_elettrica.feather'  
-         provincia='VITERBO'
          my_map = folium.Map(location=[42.42, 11.98],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
          step_dis= StepColormap(["whitesmoke","paleturquoise","skyblue","cornflowerblue","royalblue","darkblue"], 
@@ -1474,16 +1411,8 @@ def elabora_solo_meteo_discharge_provincia(rete,dataframe):
          coordinate_per_rete_elettrica=serie_elettrica['geometry']
          linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
          linee_elettriche.add_to(layer_rete_elettrica)
-         
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         df_filtrato = df[df['Provincia'] == provincia]
-         if not df_filtrato.empty:
-              gdf = gpd.GeoDataFrame(df_filtrato, geometry=gpd.points_from_xy(df_filtrato.Lon, df_filtrato.Lat), crs="EPSG:4326")
-              folium.GeoJson(gdf,
-              marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-              tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,exclusive_groups=False).add_to(my_map)
+                  
+         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica]},collapsed=False,exclusive_groups=False).add_to(my_map)
                       
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -1501,7 +1430,7 @@ def elabora_solo_meteo_discharge_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mc/sec "+str(discharge)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mc/sec "+str(discharge)))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -1519,7 +1448,7 @@ def elabora_solo_meteo_discharge_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mc/sec "+str(discharge)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mc/sec "+str(discharge)))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -1537,7 +1466,7 @@ def elabora_solo_meteo_discharge_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("mc/sec "+str(discharge)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + "mc/sec "+str(discharge)))
            geo_j.add_to(layer_giorno3)    
            
     GroupedLayerControl(groups={'giorno': [layer_giorno1, layer_giorno2, layer_giorno3]},collapsed=False,).add_to(my_map)      
@@ -1590,22 +1519,25 @@ def elabora_solo_meteo_discharge_provincia(rete,dataframe):
 
 
 
-#----------------------------------INIZIO ANALISI RISCHIO---------------------------------------------
-#elabora la mappa visualizzando i valori dell'ondata di calore prevista nella provincia scelta (indice 3gg, no ARERA)
+#-------------------------------------- ANALISI VULNERABILITA' --------------------------------------
+# ONDATA DI CALORE LINEA INTERRATA
+# Elabora la mappa visualizzando poligoni di superficie 0.02 gradi.
+# Per ciascun poligono:
+# -Colorato con scala cromatica correlata all'indice di ondata di calore adattato a 3 gg (no ARERA)
+# -Tooltip con estensione linea interrata presente (metri), indice ondata di calore, guasti attesi
 def elabora_evento_hw_provincia(rete, dataframe):
     df = gpd.read_feather('./conf/confini/confini_comuni_lazio.feather')
     dfp = gpd.read_feather('./conf/confini/confini_province_lazio.feather')
-    grouped=dataframe.groupby(by=['lat','lon','geometry']).agg(hw3gi=('hwdi', 'sum'),hw3gi_HM=('hwdi_HM','sum'))
+    grouped=dataframe.groupby(by=['lat','lon','geometry']).agg(hw3gi=('hwdi', 'sum'),hw3gi_HM=('hwdi_HM','sum'),linea_presente=('m_power_cable','first'))
     grouped_dataframe=grouped.reset_index()
     num_rows=len(dataframe)
 
     step_color= StepColormap(["green","orange","red"], vmin=0, vmax=6, index=[0, 5, 6], caption="step")
     step_color.caption = "Indice ondata di calore 3gg"
-     
+    step=0 
 
     if num_rows==4818:#provincia Roma
          step=1606
-         percorso='./conf/rete_elettrica/ROMA_rete_elettrica.feather' 
          provincia='ROMA'
          my_map = folium.Map(location=[41.92, 12.44],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)
@@ -1631,7 +1563,6 @@ def elabora_evento_hw_provincia(rete, dataframe):
          
     if num_rows==2205:#provincia Latina
          step=735
-         percorso='./conf/rete_elettrica/LATINA_rete_elettrica.feather'   
          provincia='LATINA'
          my_map = folium.Map(location=[41.40, 13.10],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)
@@ -1656,7 +1587,6 @@ def elabora_evento_hw_provincia(rete, dataframe):
 
     if num_rows==3273:#provincia Viterbo
          step=1091
-         percorso='./conf/rete_elettrica/VITERBO_rete_elettrica.feather'  
          provincia='VITERBO'
          my_map = folium.Map(location=[42.42, 11.98],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)
@@ -1681,7 +1611,6 @@ def elabora_evento_hw_provincia(rete, dataframe):
 
     if num_rows==2529:#provincia Rieti
          step=843 
-         percorso='./conf/rete_elettrica/RIETI_rete_elettrica.feather' 
          provincia='RIETI'
          my_map = folium.Map(location=[42.35, 12.91],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)
@@ -1706,7 +1635,6 @@ def elabora_evento_hw_provincia(rete, dataframe):
 
     if num_rows==2889:#provincia Frosinone
          step=963
-         percorso='./conf/rete_elettrica/FROSINONE_rete_elettrica.feather'  
          provincia='FROSINONE' 
          my_map = folium.Map(location=[41.62, 13.50],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)
@@ -1731,26 +1659,27 @@ def elabora_evento_hw_provincia(rete, dataframe):
     
 
     if rete==1:
-         layer_rete_elettrica = folium.FeatureGroup("Rete elettrica",overlay=True, show=False).add_to(my_map)
-         dataframe_rete_elettrica = pd.read_feather(percorso)
-         serie_elettrica=pd.DataFrame(dataframe_rete_elettrica)
-         coordinate_per_rete_elettrica=serie_elettrica['geometry']
-         linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
-         linee_elettriche.add_to(layer_rete_elettrica)
+         layer_linea_interrata = folium.FeatureGroup("Linea interrata",overlay=True, show=False).add_to(my_map)
+         if provincia=='ROMA': dataframe_linea_interrata = gpd.read_feather('./conf/rete_elettrica/Roma_power_cable.feather')
+         if provincia=='VITERBO': dataframe_linea_interrata = gpd.read_feather('./conf/rete_elettrica/Viterbo_power_cable.feather')
+         if provincia=='RIETI': dataframe_linea_interrata = gpd.read_feather('./conf/rete_elettrica/Rieti_power_cable.feather')
+         if provincia=='FROSINONE': dataframe_linea_interrata = gpd.read_feather('./conf/rete_elettrica/Frosinone_power_cable.feather')
+         if provincia=='LATINA': dataframe_linea_interrata = gpd.read_feather('./conf/rete_elettrica/Latina_power_cable.feather')
+         folium.GeoJson(dataframe_linea_interrata,
+                        style_function=lambda feature: {
+                        "color": "red",
+                        "weight": 1,
+                        "fillOpacity": 0.9},
+                        zoom_on_click=True).add_to(layer_linea_interrata)
+
+         GroupedLayerControl(groups={'rete elettrica': [layer_linea_interrata]},collapsed=False,
+                             exclusive_groups=False).add_to(my_map)
          
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         df_filtrato = df[df['Provincia'] == provincia]
-         if not df_filtrato.empty:
-              gdf = gpd.GeoDataFrame(df_filtrato, geometry=gpd.points_from_xy(df_filtrato.Lon, df_filtrato.Lat), crs="EPSG:4326")
-              folium.GeoJson(gdf,
-              marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-              tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,exclusive_groups=False).add_to(my_map)
-    
+           
     
     layer_HW = folium.FeatureGroup('Indice heat wave',overlay=False).add_to(my_map)
-    for i in range (0,step):
+    for i in range (0,step-1):
+           linea=(grouped_dataframe.at[i,'linea_presente'])
            poligono=(grouped_dataframe.at[i,'geometry'])
            indice_hw_3g=grouped_dataframe.at[i,'hw3gi']
            sim_geo = gpd.GeoSeries(poligono).simplify(tolerance=0.001)
@@ -1763,7 +1692,9 @@ def elabora_evento_hw_provincia(rete, dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("hw3gi "+str(indice_hw_3g)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>"+"hw3gi: " + str(indice_hw_3g) + "<br>" + 
+                                          "linea (m): " + str(linea) + "<br>" +
+                                          "guasti previsti: guasti medi x " + str(guasti_hw_3g(indice_hw_3g))))
            geo_j.add_to(layer_HW)
     GroupedLayerControl(groups={'Ondata di calore': [layer_HW]},collapsed=False,).add_to(my_map)
     
@@ -1884,7 +1815,12 @@ def elabora_evento_hw_provincia(rete, dataframe):
 
 
 
-#elabora la mappa visualizzando la riduzione di vita prevista per i trasformatori di potenza nella provincia scelta (previsione 3gg)
+
+# TEMPERATURE ELEVATE TRASFORMATORI DI POTENZA
+# Elabora la mappa visualizzando poligoni di superficie 0.02 gradi.
+# Per ciascun poligono:
+# -Colorato con scala cromatica correlata alla riduzione vita dei componenti presenti (3gg)
+# -Tooltip con max temp raggiunte (°C), % riduz vita, numero di trasformatori impattati
 def elabora_evento_hw_trasformatore_p_provincia(rete,dataframe):
     df = gpd.read_feather('./conf/confini/confini_comuni_lazio.feather')
     dfp = gpd.read_feather('./conf/confini/confini_province_lazio.feather')
@@ -1892,7 +1828,6 @@ def elabora_evento_hw_trasformatore_p_provincia(rete,dataframe):
     
     if num_rows==2889:#provincia Frosinone
          step=963;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
-         percorso='./conf/rete_elettrica/FROSINONE_rete_elettrica.feather'  
          provincia='FROSINONE' 
          my_map = folium.Map(location=[41.62, 13.50],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -1920,7 +1855,6 @@ def elabora_evento_hw_trasformatore_p_provincia(rete,dataframe):
 
     if num_rows==4818:#provincia Roma
          step=1606;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
-         percorso='./conf/rete_elettrica/ROMA_rete_elettrica.feather' 
          provincia='ROMA'
          my_map = folium.Map(location=[41.92, 12.44],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -1949,7 +1883,6 @@ def elabora_evento_hw_trasformatore_p_provincia(rete,dataframe):
             
     if num_rows==2205:#provincia Latina
          step=735;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
-         percorso='./conf/rete_elettrica/LATINA_rete_elettrica.feather'   
          provincia='LATINA' 
          my_map = folium.Map(location=[41.40, 13.10],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -1979,7 +1912,6 @@ def elabora_evento_hw_trasformatore_p_provincia(rete,dataframe):
 
     if num_rows==2529:#provincia Rieti
          step=843;g1=0;g2=g1+step;g3=g2+step;g4=g3+step   
-         percorso='./conf/rete_elettrica/RIETI_rete_elettrica.feather' 
          provincia='RIETI'
          my_map = folium.Map(location=[42.35, 12.91],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2008,7 +1940,6 @@ def elabora_evento_hw_trasformatore_p_provincia(rete,dataframe):
 
     if num_rows==3273:#provincia Viterbo
          step=1091;g1=0;g2=g1+step;g3=g2+step;g4=g3+step  
-         percorso='./conf/rete_elettrica/VITERBO_rete_elettrica.feather'  
          provincia='VITERBO'
          my_map = folium.Map(location=[42.42, 11.98],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2036,22 +1967,19 @@ def elabora_evento_hw_trasformatore_p_provincia(rete,dataframe):
          
 
     if rete==1:
-         layer_rete_elettrica = folium.FeatureGroup("Rete elettrica",overlay=True, show=False).add_to(my_map)
-         dataframe_rete_elettrica = pd.read_feather(percorso)
-         serie_elettrica=pd.DataFrame(dataframe_rete_elettrica)
-         coordinate_per_rete_elettrica=serie_elettrica['geometry']
-         linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
-         linee_elettriche.add_to(layer_rete_elettrica)
+         layer_trasformatori_potenza = folium.FeatureGroup("Tras. potenza",overlay=True, show=False).add_to(my_map)
+         if provincia=='ROMA': dataframe_trasformatori_potenza = gpd.read_feather('./conf/rete_elettrica/Roma_trasformatori_potenza.feather')
+         if provincia=='VITERBO': dataframe_trasformatori_potenza = gpd.read_feather('./conf/rete_elettrica/Viterbo_trasformatori_potenza.feather')
+         if provincia=='RIETI': dataframe_trasformatori_potenza = gpd.read_feather('./conf/rete_elettrica/Rieti_trasformatori_potenza.feather')
+         if provincia=='FROSINONE': dataframe_trasformatori_potenza = gpd.read_feather('./conf/rete_elettrica/Frosinone_trasformatori_potenza.feather')
+         if provincia=='LATINA': dataframe_trasformatori_potenza = gpd.read_feather('./conf/rete_elettrica/Latina_trasformatori_potenza.feather')
          
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         df_filtrato = df[df['Provincia'] == provincia]
-         if not df_filtrato.empty:
-              gdf = gpd.GeoDataFrame(df_filtrato, geometry=gpd.points_from_xy(df_filtrato.Lon, df_filtrato.Lat), crs="EPSG:4326")
-              folium.GeoJson(gdf,
-              marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-              tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,exclusive_groups=False).add_to(my_map)
+         geodataframe_trasformatori_potenza = gpd.GeoDataFrame(dataframe_trasformatori_potenza)
+         folium.GeoJson(geodataframe_trasformatori_potenza,marker=folium.CircleMarker(radius=2, fill_color="red", 
+                                                                         fill_opacity=0.8, color="black", weight=2)).add_to(layer_trasformatori_potenza)
+         
+         GroupedLayerControl(groups={'rete elettrica': [layer_trasformatori_potenza]},collapsed=False,
+                             exclusive_groups=False).add_to(my_map)
                       
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -2069,7 +1997,10 @@ def elabora_evento_hw_trasformatore_p_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(life_tp65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_tp65) + "<br>" +
+                                          "trasf. potenza impattati: " + str(dataframe.at[i,'num_tp'])))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -2087,7 +2018,10 @@ def elabora_evento_hw_trasformatore_p_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(life_tp65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_tp65) + "<br>" +
+                                          "trasf. potenza impattati: " + str(dataframe.at[i,'num_tp'])))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -2105,7 +2039,10 @@ def elabora_evento_hw_trasformatore_p_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(life_tp65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_tp65) + "<br>" +
+                                          "trasf. potenza impattati: " + str(dataframe.at[i,'num_tp'])))
            geo_j.add_to(layer_giorno3)    
            
     GroupedLayerControl(groups={'giorno': [layer_giorno1, layer_giorno2, layer_giorno3]},collapsed=False,).add_to(my_map)      
@@ -2146,7 +2083,11 @@ def elabora_evento_hw_trasformatore_p_provincia(rete,dataframe):
 
 
 
-#elabora la mappa visualizzando la riduzione di vita prevista per i trasformatori di distribuzione nella provincia scelta (previsione 3gg)
+# TEMPERATURE ELEVATE TRASFORMATORI DI DISTRIBUZIONE
+# Elabora la mappa visualizzando poligoni di superficie 0.02 gradi.
+# Per ciascun poligono:
+# -Colorato con scala cromatica correlata alla riduzione vita dei componenti presenti (3gg)
+# -Tooltip con max temp raggiunte (°C), % riduz vita, numero di trasformatori impattati
 def elabora_evento_hw_trasformatore_d_provincia(rete,dataframe):
     df = gpd.read_feather('./conf/confini/confini_comuni_lazio.feather')
     dfp = gpd.read_feather('./conf/confini/confini_province_lazio.feather')
@@ -2154,7 +2095,6 @@ def elabora_evento_hw_trasformatore_d_provincia(rete,dataframe):
     
     if num_rows==2889:#provincia Frosinone
          step=963;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
-         percorso='./conf/rete_elettrica/FROSINONE_rete_elettrica.feather'  
          provincia='FROSINONE' 
          my_map = folium.Map(location=[41.62, 13.50],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2182,7 +2122,6 @@ def elabora_evento_hw_trasformatore_d_provincia(rete,dataframe):
 
     if num_rows==4818:#provincia Roma
          step=1606;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
-         percorso='./conf/rete_elettrica/ROMA_rete_elettrica.feather' 
          provincia='ROMA'
          my_map = folium.Map(location=[41.92, 12.44],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2211,7 +2150,6 @@ def elabora_evento_hw_trasformatore_d_provincia(rete,dataframe):
             
     if num_rows==2205:#provincia Latina
          step=735;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
-         percorso='./conf/rete_elettrica/LATINA_rete_elettrica.feather'   
          provincia='LATINA' 
          my_map = folium.Map(location=[41.40, 13.10],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2241,7 +2179,6 @@ def elabora_evento_hw_trasformatore_d_provincia(rete,dataframe):
 
     if num_rows==2529:#provincia Rieti
          step=843;g1=0;g2=g1+step;g3=g2+step;g4=g3+step   
-         percorso='./conf/rete_elettrica/RIETI_rete_elettrica.feather' 
          provincia='RIETI'
          my_map = folium.Map(location=[42.35, 12.91],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2270,7 +2207,6 @@ def elabora_evento_hw_trasformatore_d_provincia(rete,dataframe):
 
     if num_rows==3273:#provincia Viterbo
          step=1091;g1=0;g2=g1+step;g3=g2+step;g4=g3+step  
-         percorso='./conf/rete_elettrica/VITERBO_rete_elettrica.feather'  
          provincia='VITERBO'
          my_map = folium.Map(location=[42.42, 11.98],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2298,22 +2234,18 @@ def elabora_evento_hw_trasformatore_d_provincia(rete,dataframe):
          
 
     if rete==1:
-         layer_rete_elettrica = folium.FeatureGroup("Rete elettrica",overlay=True, show=False).add_to(my_map)
-         dataframe_rete_elettrica = pd.read_feather(percorso)
-         serie_elettrica=pd.DataFrame(dataframe_rete_elettrica)
-         coordinate_per_rete_elettrica=serie_elettrica['geometry']
-         linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
-         linee_elettriche.add_to(layer_rete_elettrica)
+         layer_trasformatori_distribuzione = folium.FeatureGroup("Tras. distribuzione",overlay=True, show=False).add_to(my_map)
+         if provincia=='ROMA': dataframe_trasformatori_distribuzione = gpd.read_feather('./conf/rete_elettrica/Roma_trasformatori_distribuzione.feather')
+         if provincia=='VITERBO': dataframe_trasformatori_distribuzione = gpd.read_feather('./conf/rete_elettrica/Viterbo_trasformatori_distribuzione.feather')
+         if provincia=='RIETI': dataframe_trasformatori_distribuzione = gpd.read_feather('./conf/rete_elettrica/Rieti_trasformatori_distribuzione.feather')
+         if provincia=='FROSINONE': dataframe_trasformatori_distribuzione = gpd.read_feather('./conf/rete_elettrica/Frosinone_trasformatori_distribuzione.feather')
+         if provincia=='LATINA': dataframe_trasformatori_distribuzione = gpd.read_feather('./conf/rete_elettrica/Latina_trasformatori_distribuzione.feather')
          
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         df_filtrato = df[df['Provincia'] == provincia]
-         if not df_filtrato.empty:
-              gdf = gpd.GeoDataFrame(df_filtrato, geometry=gpd.points_from_xy(df_filtrato.Lon, df_filtrato.Lat), crs="EPSG:4326")
-              folium.GeoJson(gdf,
-              marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-              tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,exclusive_groups=False).add_to(my_map)
+         geodataframe_trasformatori_distribuzione = gpd.GeoDataFrame(dataframe_trasformatori_distribuzione)
+         folium.GeoJson(geodataframe_trasformatori_distribuzione, marker=folium.CircleMarker(radius=2, fill_color="red", 
+                                                                         fill_opacity=0.8, color="black", weight=2)).add_to(layer_trasformatori_distribuzione)
+         GroupedLayerControl(groups={'rete elettrica': [layer_trasformatori_distribuzione]},collapsed=False,
+                             exclusive_groups=False).add_to(my_map)
                       
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -2331,7 +2263,10 @@ def elabora_evento_hw_trasformatore_d_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(life_td65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_td65) + "<br>" +
+                                          "trasf. distribuzione impattati: " + str(dataframe.at[i,'num_td'])))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -2349,7 +2284,10 @@ def elabora_evento_hw_trasformatore_d_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(life_td65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_td65) + "<br>" +
+                                          "trasf. distribuzione impattati: " + str(dataframe.at[i,'num_td'])))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -2367,7 +2305,10 @@ def elabora_evento_hw_trasformatore_d_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(life_td65)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "max temp °C: " + str(dataframe.at[i,'temperature_2m_max']) + "<br>" +
+                                          "riduz. vita %: " + str(life_td65) + "<br>" +
+                                          "trasf. distribuzione impattati: " + str(dataframe.at[i,'num_td'])))
            geo_j.add_to(layer_giorno3)    
            
     GroupedLayerControl(groups={'giorno': [layer_giorno1, layer_giorno2, layer_giorno3]},collapsed=False,).add_to(my_map)      
@@ -2406,7 +2347,11 @@ def elabora_evento_hw_trasformatore_d_provincia(rete,dataframe):
 
 
 
-#elabora la mappa visualizzando la probabilità di failure dei tralicci nella provincia scelta (previsioni 3gg)
+# FORTE VENTO TRALICCI
+# Elabora la mappa visualizzando poligoni di superficie 0.02 gradi.
+# Per ciascun poligono:
+# -Colorato con scala cromatica correlata alla probabilità di guasto dei componenti presenti (3gg)
+# -Tooltip con max velocità vento (m/s), % prob guasto, numero tralicci presenti, stima num tralicci guasti
 def elabora_evento_vento_tralicci_provincia(rete,dataframe):
     df = gpd.read_feather('./conf/confini/confini_comuni_lazio.feather')
     dfp = gpd.read_feather('./conf/confini/confini_province_lazio.feather')
@@ -2414,7 +2359,6 @@ def elabora_evento_vento_tralicci_provincia(rete,dataframe):
     
     if num_rows==2889:#provincia Frosinone
          step=963;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
-         percorso='./conf/rete_elettrica/FROSINONE_rete_elettrica.feather'  
          provincia='FROSINONE' 
          my_map = folium.Map(location=[41.62, 13.50],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2442,7 +2386,6 @@ def elabora_evento_vento_tralicci_provincia(rete,dataframe):
 
     if num_rows==4818:#provincia Roma
          step=1606;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
-         percorso='./conf/rete_elettrica/ROMA_rete_elettrica.feather' 
          provincia='ROMA'
          my_map = folium.Map(location=[41.92, 12.44],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2471,7 +2414,6 @@ def elabora_evento_vento_tralicci_provincia(rete,dataframe):
             
     if num_rows==2205:#provincia Latina
          step=735;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
-         percorso='./conf/rete_elettrica/LATINA_rete_elettrica.feather'   
          provincia='LATINA' 
          my_map = folium.Map(location=[41.40, 13.10],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2501,7 +2443,6 @@ def elabora_evento_vento_tralicci_provincia(rete,dataframe):
 
     if num_rows==2529:#provincia Rieti
          step=843;g1=0;g2=g1+step;g3=g2+step;g4=g3+step   
-         percorso='./conf/rete_elettrica/RIETI_rete_elettrica.feather' 
          provincia='RIETI'
          my_map = folium.Map(location=[42.35, 12.91],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2530,7 +2471,6 @@ def elabora_evento_vento_tralicci_provincia(rete,dataframe):
 
     if num_rows==3273:#provincia Viterbo
          step=1091;g1=0;g2=g1+step;g3=g2+step;g4=g3+step  
-         percorso='./conf/rete_elettrica/VITERBO_rete_elettrica.feather'  
          provincia='VITERBO'
          my_map = folium.Map(location=[42.42, 11.98],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2558,22 +2498,17 @@ def elabora_evento_vento_tralicci_provincia(rete,dataframe):
          
 
     if rete==1:
-         layer_rete_elettrica = folium.FeatureGroup("Rete elettrica",overlay=True, show=False).add_to(my_map)
-         dataframe_rete_elettrica = pd.read_feather(percorso)
-         serie_elettrica=pd.DataFrame(dataframe_rete_elettrica)
-         coordinate_per_rete_elettrica=serie_elettrica['geometry']
-         linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
-         linee_elettriche.add_to(layer_rete_elettrica)
+         layer_tralicci = folium.FeatureGroup("Tralicci",overlay=True, show=False).add_to(my_map)
+         if provincia=='ROMA': dataframe_tralicci = gpd.read_feather('./conf/rete_elettrica/Roma_tralicci.feather')
+         if provincia=='VITERBO': dataframe_tralicci = gpd.read_feather('./conf/rete_elettrica/Viterbo_tralicci.feather')
+         if provincia=='RIETI': dataframe_tralicci = gpd.read_feather('./conf/rete_elettrica/Rieti_tralicci.feather')
+         if provincia=='FROSINONE': dataframe_tralicci = gpd.read_feather('./conf/rete_elettrica/Frosinone_tralicci.feather')
+         if provincia=='LATINA': dataframe_tralicci = gpd.read_feather('./conf/rete_elettrica/Latina_tralicci.feather')
          
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         df_filtrato = df[df['Provincia'] == provincia]
-         if not df_filtrato.empty:
-              gdf = gpd.GeoDataFrame(df_filtrato, geometry=gpd.points_from_xy(df_filtrato.Lon, df_filtrato.Lat), crs="EPSG:4326")
-              folium.GeoJson(gdf,
-              marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-              tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,exclusive_groups=False).add_to(my_map)
+         geodataframe_tralicci = gpd.GeoDataFrame(dataframe_tralicci)
+         folium.GeoJson(geodataframe_tralicci,marker=folium.CircleMarker(radius=2, fill_color="red", fill_opacity=0.8, color="black", weight=2)).add_to(layer_tralicci)         
+         
+         GroupedLayerControl(groups={'rete elettrica': [layer_tralicci]},collapsed=False,exclusive_groups=False).add_to(my_map)
                       
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -2591,7 +2526,11 @@ def elabora_evento_vento_tralicci_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_tralicci)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_tralicci) + "<br>" +
+                                          "Tralicci presenti: " + str(dataframe.at[i,'num_tralicci']) + "<br>" +
+                                          "Tralicci guasti (stima): " + str(elementi_prob_guasto_002(prob_tralicci, dataframe.at[i,'num_tralicci']))))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -2609,7 +2548,11 @@ def elabora_evento_vento_tralicci_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_tralicci)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_tralicci) + "<br>" +
+                                          "Tralicci presenti: " + str(dataframe.at[i,'num_tralicci']) + "<br>" +
+                                          "Tralicci guasti (stima): " + str(elementi_prob_guasto_002(prob_tralicci, dataframe.at[i,'num_tralicci']))))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -2627,7 +2570,11 @@ def elabora_evento_vento_tralicci_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_tralicci)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_tralicci) + "<br>" +
+                                          "Tralicci presenti: " + str(dataframe.at[i,'num_tralicci']) + "<br>" +
+                                          "Tralicci guasti (stima): " + str(elementi_prob_guasto_002(prob_tralicci, dataframe.at[i,'num_tralicci']))))
            geo_j.add_to(layer_giorno3)    
            
     GroupedLayerControl(groups={'giorno': [layer_giorno1, layer_giorno2, layer_giorno3]},collapsed=False,).add_to(my_map)      
@@ -2666,7 +2613,12 @@ def elabora_evento_vento_tralicci_provincia(rete,dataframe):
 
 
 
-#elabora la mappa visualizzando la probabilità di failure della linea esterna nella provincia scelta (previsione 3gg)
+# FORTE VENTO LINEA SOSPESA (LINEA ESTERNA)
+# Elabora la mappa visualizzando poligoni di superficie 0.02 gradi.
+# Per ciascun poligono:
+# -Colorato con scala cromatica correlata alla probabilità di guasto della linea esterna presente (3gg)
+# -Tooltip con max velocità vento (m/s), % prob guasto, 
+# metri linea esterna presente, stima metri linea esterna guasta
 def elabora_evento_vento_linea_esterna_provincia(rete,dataframe):
     df = gpd.read_feather('./conf/confini/confini_comuni_lazio.feather')
     dfp = gpd.read_feather('./conf/confini/confini_province_lazio.feather')
@@ -2674,7 +2626,6 @@ def elabora_evento_vento_linea_esterna_provincia(rete,dataframe):
     
     if num_rows==2889:#provincia Frosinone
          step=963;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
-         percorso='./conf/rete_elettrica/FROSINONE_rete_elettrica.feather'  
          provincia='FROSINONE' 
          my_map = folium.Map(location=[41.62, 13.50],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2702,7 +2653,6 @@ def elabora_evento_vento_linea_esterna_provincia(rete,dataframe):
 
     if num_rows==4818:#provincia Roma
          step=1606;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
-         percorso='./conf/rete_elettrica/ROMA_rete_elettrica.feather' 
          provincia='ROMA'
          my_map = folium.Map(location=[41.92, 12.44],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2731,7 +2681,6 @@ def elabora_evento_vento_linea_esterna_provincia(rete,dataframe):
             
     if num_rows==2205:#provincia Latina
          step=735;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
-         percorso='./conf/rete_elettrica/LATINA_rete_elettrica.feather'   
          provincia='LATINA' 
          my_map = folium.Map(location=[41.40, 13.10],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2761,7 +2710,6 @@ def elabora_evento_vento_linea_esterna_provincia(rete,dataframe):
 
     if num_rows==2529:#provincia Rieti
          step=843;g1=0;g2=g1+step;g3=g2+step;g4=g3+step   
-         percorso='./conf/rete_elettrica/RIETI_rete_elettrica.feather' 
          provincia='RIETI'
          my_map = folium.Map(location=[42.35, 12.91],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2790,7 +2738,6 @@ def elabora_evento_vento_linea_esterna_provincia(rete,dataframe):
 
     if num_rows==3273:#provincia Viterbo
          step=1091;g1=0;g2=g1+step;g3=g2+step;g4=g3+step  
-         percorso='./conf/rete_elettrica/VITERBO_rete_elettrica.feather'  
          provincia='VITERBO'
          my_map = folium.Map(location=[42.42, 11.98],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2818,22 +2765,21 @@ def elabora_evento_vento_linea_esterna_provincia(rete,dataframe):
          
 
     if rete==1:
-         layer_rete_elettrica = folium.FeatureGroup("Rete elettrica",overlay=True, show=False).add_to(my_map)
-         dataframe_rete_elettrica = pd.read_feather(percorso)
-         serie_elettrica=pd.DataFrame(dataframe_rete_elettrica)
-         coordinate_per_rete_elettrica=serie_elettrica['geometry']
-         linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
-         linee_elettriche.add_to(layer_rete_elettrica)
+         layer_linea_esterna = folium.FeatureGroup("Linea AT/MT",overlay=True, show=False).add_to(my_map)
+         if provincia=='ROMA': dataframe_linea_esterna = gpd.read_feather('./conf/rete_elettrica/Roma_power_line.feather')
+         if provincia=='VITERBO': dataframe_linea_esterna = gpd.read_feather('./conf/rete_elettrica/Viterbo_power_line.feather')
+         if provincia=='RIETI': dataframe_linea_esterna = gpd.read_feather('./conf/rete_elettrica/Rieti_power_line.feather')
+         if provincia=='FROSINONE': dataframe_linea_esterna = gpd.read_feather('./conf/rete_elettrica/Frosinone_power_line.feather')
+         if provincia=='LATINA': dataframe_linea_esterna = gpd.read_feather('./conf/rete_elettrica/Latina_power_line.feather')
          
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         df_filtrato = df[df['Provincia'] == provincia]
-         if not df_filtrato.empty:
-              gdf = gpd.GeoDataFrame(df_filtrato, geometry=gpd.points_from_xy(df_filtrato.Lon, df_filtrato.Lat), crs="EPSG:4326")
-              folium.GeoJson(gdf,
-              marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-              tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,exclusive_groups=False).add_to(my_map)
+         folium.GeoJson(dataframe_linea_esterna,
+                        style_function=lambda feature: {
+                        "color": "red",
+                        "weight": 1,
+                        "fillOpacity": 0.9},
+                        zoom_on_click=True).add_to(layer_linea_esterna)
+         
+         GroupedLayerControl(groups={'rete elettrica': [layer_linea_esterna]},collapsed=False,exclusive_groups=False).add_to(my_map)
                       
     
     giorno1=(dataframe.at[g1,'giorno'])
@@ -2851,7 +2797,11 @@ def elabora_evento_vento_linea_esterna_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_linea_esterna)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_linea_esterna) + "<br>" +
+                                          "Tot linea sospesa (m): " + str(dataframe.at[i,'m_power_line']) + "<br>" +
+                                          "Linea guasta (stima m): " + str(elementi_prob_guasto_002(prob_linea_esterna, dataframe.at[i,'m_power_line']))))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -2869,7 +2819,11 @@ def elabora_evento_vento_linea_esterna_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_linea_esterna)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_linea_esterna) + "<br>" +
+                                          "Tot linea sospesa (m): " + str(dataframe.at[i,'m_power_line']) + "<br>" +
+                                          "Linea guasta (stima m): " + str(elementi_prob_guasto_002(prob_linea_esterna, dataframe.at[i,'m_power_line']))))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -2887,7 +2841,11 @@ def elabora_evento_vento_linea_esterna_provincia(rete,dataframe):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_linea_esterna)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_linea_esterna) + "<br>" +
+                                          "Tot linea sospesa (m): " + str(dataframe.at[i,'m_power_line']) + "<br>" +
+                                          "Linea guasta (stima m): " + str(elementi_prob_guasto_002(prob_linea_esterna, dataframe.at[i,'m_power_line']))))
            geo_j.add_to(layer_giorno3)    
            
     GroupedLayerControl(groups={'giorno': [layer_giorno1, layer_giorno2, layer_giorno3]},collapsed=False,).add_to(my_map)      
@@ -2928,7 +2886,12 @@ def elabora_evento_vento_linea_esterna_provincia(rete,dataframe):
 
 
 
-#elabora la mappa visualizzando la probabilità di failure dei pali di servizio nella provincia scelta (previsione 3gg)
+# VENTO FORTE PALI DI SERVIZIO
+# Elabora la mappa visualizzando poligoni di superficie 0.02 gradi.
+# Per ciascun poligono:
+# -Colorato con scala cromatica correlata alla probabilità di guasto dei pali di servizio presenti (3gg)
+# -Tooltip con max velocità del vento (m/s), % prob guasto, 
+# numero pali presenti, stima numero pali guasti
 def elabora_evento_vento_pali_provincia(rete, dataframe,tipo_palo, pali_anni):
     df = gpd.read_feather('./conf/confini/confini_comuni_lazio.feather')
     dfp = gpd.read_feather('./conf/confini/confini_province_lazio.feather')
@@ -2936,7 +2899,6 @@ def elabora_evento_vento_pali_provincia(rete, dataframe,tipo_palo, pali_anni):
     
     if num_rows==2889:#provincia Frosinone
          step=963;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
-         percorso='./conf/rete_elettrica/FROSINONE_rete_elettrica.feather'  
          provincia='FROSINONE' 
          my_map = folium.Map(location=[41.62, 13.50],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2964,7 +2926,6 @@ def elabora_evento_vento_pali_provincia(rete, dataframe,tipo_palo, pali_anni):
 
     if num_rows==4818:#provincia Roma
          step=1606;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
-         percorso='./conf/rete_elettrica/ROMA_rete_elettrica.feather' 
          provincia='ROMA'
          my_map = folium.Map(location=[41.92, 12.44],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -2993,7 +2954,6 @@ def elabora_evento_vento_pali_provincia(rete, dataframe,tipo_palo, pali_anni):
             
     if num_rows==2205:#provincia Latina
          step=735;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
-         percorso='./conf/rete_elettrica/LATINA_rete_elettrica.feather'   
          provincia='LATINA' 
          my_map = folium.Map(location=[41.40, 13.10],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -3023,7 +2983,6 @@ def elabora_evento_vento_pali_provincia(rete, dataframe,tipo_palo, pali_anni):
 
     if num_rows==2529:#provincia Rieti
          step=843;g1=0;g2=g1+step;g3=g2+step;g4=g3+step   
-         percorso='./conf/rete_elettrica/RIETI_rete_elettrica.feather' 
          provincia='RIETI'
          my_map = folium.Map(location=[42.35, 12.91],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -3052,7 +3011,6 @@ def elabora_evento_vento_pali_provincia(rete, dataframe,tipo_palo, pali_anni):
 
     if num_rows==3273:#provincia Viterbo
          step=1091;g1=0;g2=g1+step;g3=g2+step;g4=g3+step  
-         percorso='./conf/rete_elettrica/VITERBO_rete_elettrica.feather'  
          provincia='VITERBO'
          my_map = folium.Map(location=[42.42, 11.98],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -3080,23 +3038,19 @@ def elabora_evento_vento_pali_provincia(rete, dataframe,tipo_palo, pali_anni):
          
 
     if rete==1:
-         layer_rete_elettrica = folium.FeatureGroup("Rete elettrica",overlay=True, show=False).add_to(my_map)
-         dataframe_rete_elettrica = pd.read_feather(percorso)
-         serie_elettrica=pd.DataFrame(dataframe_rete_elettrica)
-         coordinate_per_rete_elettrica=serie_elettrica['geometry']
-         linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
-         linee_elettriche.add_to(layer_rete_elettrica)
+         layer_pali = folium.FeatureGroup("Pali",overlay=True, show=False).add_to(my_map)
+         if provincia=='ROMA': dataframe_pali = gpd.read_feather('./conf/rete_elettrica/Roma_pali.feather')
+         if provincia=='VITERBO': dataframe_pali = gpd.read_feather('./conf/rete_elettrica/Viterbo_pali.feather')
+         if provincia=='RIETI': dataframe_pali = gpd.read_feather('./conf/rete_elettrica/Rieti_pali.feather')
+         if provincia=='FROSINONE': dataframe_pali = gpd.read_feather('./conf/rete_elettrica/Frosinone_pali.feather')
+         if provincia=='LATINA': dataframe_pali = gpd.read_feather('./conf/rete_elettrica/Latina_pali.feather')
          
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         df_filtrato = df[df['Provincia'] == provincia]
-         if not df_filtrato.empty:
-              gdf = gpd.GeoDataFrame(df_filtrato, geometry=gpd.points_from_xy(df_filtrato.Lon, df_filtrato.Lat), crs="EPSG:4326")
-              folium.GeoJson(gdf,
-              marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-              tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,exclusive_groups=False).add_to(my_map)
-                      
+         geodataframe_pali = gpd.GeoDataFrame(dataframe_pali)
+         folium.GeoJson(geodataframe_pali,marker=folium.CircleMarker(radius=2, fill_color="red", fill_opacity=0.8, color="black", weight=2)).add_to(layer_pali)         
+         
+         GroupedLayerControl(groups={'rete elettrica': [layer_pali]},collapsed=False,exclusive_groups=False).add_to(my_map)
+         
+                               
     
     giorno1=(dataframe.at[g1,'giorno'])
     layer_giorno1 = folium.FeatureGroup(str(giorno1),overlay=False).add_to(my_map)
@@ -3116,7 +3070,11 @@ def elabora_evento_vento_pali_provincia(rete, dataframe,tipo_palo, pali_anni):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_pali)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_pali) + "<br>" +
+                                          "Pali presenti: " + str(dataframe.at[i,'num_pali']) + "<br>" +
+                                          "Pali guasti (stima): " + str(elementi_prob_guasto_002(prob_pali, dataframe.at[i,'num_pali']))))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -3137,7 +3095,11 @@ def elabora_evento_vento_pali_provincia(rete, dataframe,tipo_palo, pali_anni):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_pali)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_pali) + "<br>" +
+                                          "Pali presenti: " + str(dataframe.at[i,'num_pali']) + "<br>" +
+                                          "Pali guasti (stima): " + str(elementi_prob_guasto_002(prob_pali, dataframe.at[i,'num_pali']))))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -3158,7 +3120,11 @@ def elabora_evento_vento_pali_provincia(rete, dataframe,tipo_palo, pali_anni):
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(prob_pali)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Max vel. vento m/s:" + str(dataframe.at[i,'wind_speed_10m_max']) + "<br>" +
+                                          "Prob. guasto (%) " + str(prob_pali) + "<br>" +
+                                          "Pali presenti: " + str(dataframe.at[i,'num_pali']) + "<br>" +
+                                          "Pali guasti (stima): " + str(elementi_prob_guasto_002(prob_pali, dataframe.at[i,'num_pali']))))
            geo_j.add_to(layer_giorno3)    
            
     GroupedLayerControl(groups={'giorno': [layer_giorno1, layer_giorno2, layer_giorno3]},collapsed=False,).add_to(my_map)      
@@ -3198,7 +3164,13 @@ def elabora_evento_vento_pali_provincia(rete, dataframe,tipo_palo, pali_anni):
 
 
 #elabora la mappa visualizzando la probabilità di failure delle cabine primarie nella provincia scelta (previsione 3gg)
-def elabora_evento_alluvione_cabine_provincia(rete,dataframe):# la mappa rischio https://aubac.it/piani-di-bacino/mappe-pgra-2021-ii-ciclo
+# ALLAGAMENTO CABINE ELETTRICHE
+# Elabora la mappa visualizzando poligoni di superficie 0.02 gradi.
+# Per ciascun poligono:
+# -Colorato con scala cromatica correlata alla probabilità di guasto delle cabine elettriche (3gg)
+# -Tooltip con stima altezza allagamento (cm), % prob guasto, 
+# numero cabine presenti, stima numero cabine guaste
+def elabora_evento_alluvione_cabine_provincia(rete,dataframe):
     import math
     df = gpd.read_feather('./conf/confini/confini_comuni_lazio.feather')
     dfp = gpd.read_feather('./conf/confini/confini_province_lazio.feather')
@@ -3207,7 +3179,6 @@ def elabora_evento_alluvione_cabine_provincia(rete,dataframe):# la mappa rischio
     
     if num_rows==2205:#provincia Latina
          step=735;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
-         percorso='./conf/rete_elettrica/LATINA_rete_elettrica.feather'   
          provincia='LATINA' 
          my_map = folium.Map(location=[41.40, 13.10],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -3236,7 +3207,6 @@ def elabora_evento_alluvione_cabine_provincia(rete,dataframe):# la mappa rischio
 
     if num_rows==2889:#provincia Frosinone
          step=963;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
-         percorso='./conf/rete_elettrica/FROSINONE_rete_elettrica.feather'  
          provincia='FROSINONE' 
          my_map = folium.Map(location=[41.62, 13.50],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -3265,7 +3235,6 @@ def elabora_evento_alluvione_cabine_provincia(rete,dataframe):# la mappa rischio
 
     if num_rows==4818:#provincia Roma
          step=1606;g1=0;g2=g1+step;g3=g2+step;g4=g3+step
-         percorso='./conf/rete_elettrica/ROMA_rete_elettrica.feather' 
          provincia='ROMA'
          my_map = folium.Map(location=[41.92, 12.44],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -3294,7 +3263,6 @@ def elabora_evento_alluvione_cabine_provincia(rete,dataframe):# la mappa rischio
 
     if num_rows==2529:#provincia Rieti
          step=843;g1=0;g2=g1+step;g3=g2+step;g4=g3+step   
-         percorso='./conf/rete_elettrica/RIETI_rete_elettrica.feather' 
          provincia='RIETI'
          my_map = folium.Map(location=[42.35, 12.91],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -3324,7 +3292,6 @@ def elabora_evento_alluvione_cabine_provincia(rete,dataframe):# la mappa rischio
 
     if num_rows==3273:#provincia Viterbo
          step=1091;g1=0;g2=g1+step;g3=g2+step;g4=g3+step  
-         percorso='./conf/rete_elettrica/VITERBO_rete_elettrica.feather'  
          provincia='VITERBO'
          my_map = folium.Map(location=[42.42, 11.98],min_zoom=8, max_zoom=14, zoom_start=10)
          folium.TileLayer(tiles='cartodbpositron', overlay=False).add_to(my_map)  
@@ -3352,22 +3319,17 @@ def elabora_evento_alluvione_cabine_provincia(rete,dataframe):# la mappa rischio
          dataframe_pericolo_alluvione = gpd.read_feather('./conf/aree_pericolo_alluvione/pgra_pericolo_viterbo.feather')
 
     if rete==1:
-         layer_rete_elettrica = folium.FeatureGroup("Rete elettrica",overlay=True, show=False).add_to(my_map)
-         dataframe_rete_elettrica = pd.read_feather(percorso)
-         serie_elettrica=pd.DataFrame(dataframe_rete_elettrica)
-         coordinate_per_rete_elettrica=serie_elettrica['geometry']
-         linee_elettriche=folium.PolyLine(locations=coordinate_per_rete_elettrica, color='black', weight=2, opacity=1)
-         linee_elettriche.add_to(layer_rete_elettrica)
+         layer_cabine = folium.FeatureGroup("Cabine",overlay=True, show=False).add_to(my_map)
+         if provincia=='ROMA': dataframe_cabine = gpd.read_feather('./conf/rete_elettrica/Roma_cabine_elettriche.feather')
+         if provincia=='VITERBO': dataframe_cabine = gpd.read_feather('./conf/rete_elettrica/Viterbo_cabine_elettriche.feather')
+         if provincia=='RIETI': dataframe_cabine = gpd.read_feather('./conf/rete_elettrica/Rieti_cabine_elettriche.feather')
+         if provincia=='FROSINONE': dataframe_cabine = gpd.read_feather('./conf/rete_elettrica/Frosinone_cabine_elettriche.feather')
+         if provincia=='LATINA': dataframe_cabine = gpd.read_feather('./conf/rete_elettrica/Latina_cabine_elettriche.feather')
          
-         layer_cabine_primarie = folium.FeatureGroup("Cabine primarie",overlay=True, show=False).add_to(my_map)
-         df = pd.read_excel('./conf/rete_elettrica/cabine_primarie.xlsx')
-         df_filtrato = df[df['Provincia'] == provincia]
-         if not df_filtrato.empty:
-              gdf = gpd.GeoDataFrame(df_filtrato, geometry=gpd.points_from_xy(df_filtrato.Lon, df_filtrato.Lat), crs="EPSG:4326")
-              folium.GeoJson(gdf,
-              marker=folium.CircleMarker(radius=10, fill_color="red", fill_opacity=0.8, color="black", weight=2),
-              tooltip=folium.GeoJsonTooltip(fields=["Ragione Sociale GdR"]),).add_to(layer_cabine_primarie)
-         GroupedLayerControl(groups={'rete elettrica': [layer_rete_elettrica,layer_cabine_primarie]},collapsed=False,exclusive_groups=False).add_to(my_map)
+         geodataframe_cabine = gpd.GeoDataFrame(dataframe_cabine)
+         folium.GeoJson(geodataframe_cabine,marker=folium.CircleMarker(radius=3, fill_color="yellow", fill_opacity=0.8, color="black", weight=2)).add_to(layer_cabine)         
+         
+         GroupedLayerControl(groups={'rete elettrica': [layer_cabine]},collapsed=False,exclusive_groups=False).add_to(my_map)
 
 
     
@@ -3398,7 +3360,11 @@ def elabora_evento_alluvione_cabine_provincia(rete,dataframe):# la mappa rischio
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(rischio_cabine)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Altezza allagamento (cm): " + str(dataframe.at[i,'flood_depth']) + "<br>" +
+                                          "Prob. guasto (%) " + str(rischio_cabine) + "<br>" +
+                                          "Cabine presenti: " + str(dataframe.at[i,'num_cabine']) + "<br>" +
+                                          "Cabine guaste (stima): " + str(elementi_prob_guasto_002(rischio_cabine, dataframe.at[i,'num_cabine']))))
            geo_j.add_to(layer_giorno1)
            
     giorno2=(dataframe.at[g2,'giorno'])
@@ -3416,7 +3382,11 @@ def elabora_evento_alluvione_cabine_provincia(rete,dataframe):# la mappa rischio
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(rischio_cabine)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Altezza allagamento (cm): " + str(dataframe.at[i,'flood_depth']) + "<br>" +
+                                          "Prob. guasto (%) " + str(rischio_cabine) + "<br>" +
+                                          "Cabine presenti: " + str(dataframe.at[i,'num_cabine']) + "<br>" +
+                                          "Cabine guaste (stima): " + str(elementi_prob_guasto_002(rischio_cabine, dataframe.at[i,'num_cabine']))))
            geo_j.add_to(layer_giorno2)
            
     giorno3=(dataframe.at[g3,'giorno'])
@@ -3434,7 +3404,11 @@ def elabora_evento_alluvione_cabine_provincia(rete,dataframe):# la mappa rischio
                weight=0.1,
                line_opacity=0.1,
               )
-           geo_j.add_child(folium.Tooltip("% "+str(rischio_cabine)))
+           geo_j.add_child(folium.Tooltip("<font size='4'>" + 
+                                          "Altezza allagamento (cm): " + str(dataframe.at[i,'flood_depth']) + "<br>" +
+                                          "Prob. guasto (%) " + str(rischio_cabine) + "<br>" +
+                                          "Cabine presenti: " + str(dataframe.at[i,'num_cabine']) + "<br>" +
+                                          "Cabine guaste (stima): " + str(elementi_prob_guasto_002(rischio_cabine, dataframe.at[i,'num_cabine']))))
            geo_j.add_to(layer_giorno3)    
            
     GroupedLayerControl(groups={'giorno': [layer_giorno1, layer_giorno2, layer_giorno3]},collapsed=False,).add_to(my_map)    
@@ -3470,7 +3444,7 @@ def elabora_evento_alluvione_cabine_provincia(rete,dataframe):# la mappa rischio
            if(dataframe.at[i,'river_discharge']!=dataframe.at[i,'bk_river_discharge']):
                testo="Simulazione"
     titolo_html='''<div style="position: fixed; top: 50px; left: 50px; width: 750px; height: 50px; border:2px solid grey; 
-    z-index:9999; font-size:18px;background-color:white;opacity: 0.85;"><b>ALLUVIONE - Previsione rischio guasto cabine 3gg</b> 
+    z-index:9999; font-size:18px;background-color:white;opacity: 0.85;"><b>ALLUVIONE - Rischio guasto cabine 3gg</b> 
     <b>&nbsp;''' + str(giorno1) + '''-->'''+ str(giorno3) + '''</b><br><font color="red", size="3">''' + testo + '''</div>'''
     my_map.get_root().html.add_child(folium.Element(titolo_html))
     my_map.save('./conf/analisi_corrente/analisi_map.html')

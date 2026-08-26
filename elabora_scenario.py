@@ -21,7 +21,7 @@ def guasti_hw(indice):
        if (indice==13): return 4 # ....quadruplo
        if (indice==14): return 5 # massima ondata di calore, 5 volte i guasti medi
 
-# Restituisce la stima degli elementi elettrici che subiranno un guasti (vulnerabilità)
+# Restituisce la stima degli elementi elettrici che subiranno guasti (vulnerabilità)
 def elementi_prob_guasto(percentuale, tot_elementi):
        if (percentuale==0): return 0
        else:
